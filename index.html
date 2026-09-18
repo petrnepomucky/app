@@ -437,10 +437,14 @@ dialog::backdrop{background:rgba(29,39,47,.55)}
     <!-- KALKULAČKY -->
     <section id="v-kalkulacky" class="skryt">
       <div class="karta">
-        <h2>Spotřeba materiálu</h2>
+        <h2>1. Co počítáš</h2>
         <div class="chipy" id="kl-druhy"></div>
+        <p class="napoveda" id="kl-popis" style="margin-top:.7rem"></p>
+      </div>
 
-        <div class="lista" style="margin:.9rem 0 0">
+      <div class="karta">
+        <h2>2. Zadání</h2>
+        <div class="lista" style="margin:.2rem 0 0">
           <span class="chipy" id="kl-rezim">
             <button class="chip" type="button" data-rezim="laik" aria-pressed="true">Jednoduše</button>
             <button class="chip" type="button" data-rezim="profi" aria-pressed="false">Podrobně</button>
@@ -449,12 +453,13 @@ dialog::backdrop{background:rgba(29,39,47,.55)}
           <button class="btn btn-tichy btn-maly" type="button" id="kl-jak-prep">Jak počítám</button>
         </div>
 
-        <p class="napoveda" id="kl-popis" style="margin-top:.6rem"></p>
-        <div class="chipy" id="kl-sablony" style="margin-top:.7rem"></div>
+        <hr style="border:0;border-top:1px solid var(--linka);margin:1rem 0">
+        <label style="margin-bottom:.45rem">Šablony a rozměry</label>
+        <div class="chipy" id="kl-sablony"></div>
         <div class="schema" id="kl-schema"></div>
         <div id="kl-vstupy"></div>
 
-        <div id="kl-otvory-blok" class="skryt" style="margin-top:.4rem">
+        <div id="kl-otvory-blok" class="skryt" style="margin-top:.4rem;border-top:1px solid var(--linka);padding-top:.9rem">
           <label>Otvory k odečtení (dveře, okna)</label>
           <div id="kl-otvory"></div>
           <div class="chipy" style="margin-top:.4rem">
@@ -468,9 +473,11 @@ dialog::backdrop{background:rgba(29,39,47,.55)}
         <div class="jak skryt" id="kl-jak"></div>
       </div>
 
+      <h2 style="margin:1.4rem 0 .7rem">3. Materiál a množství</h2>
       <div class="kalk-vysledek" id="kl-vysledek"><div class="prazdno">Vyplň rozměry a spočítám množství.</div></div>
       <div class="lista">
         <button class="btn btn-metr" id="kl-do-nabidky">Vložit do nabídky</button>
+        <button class="btn btn-tichy" id="kl-doplnit">Předvybrat materiál z katalogu</button>
         <button class="btn btn-tichy" id="kl-vycistit">Vyčistit</button>
       </div>
     </section>
@@ -2243,6 +2250,7 @@ $('#kl-sablony').addEventListener('click', e => {
     });
     $$('#kl-sablony .chip-metr').forEach(x => x.classList.toggle('aktivni', x === b));
     prepocitej();
+    if (pamet.cti('kalk-auto', '1') === '1') doplnMaterialy($('#kl-doplnit'));
     return;
   }
   if (e.target.closest('#kl-material')) otevriVyber('katalog', prevezmiRozmer);
@@ -2318,7 +2326,10 @@ function prevezmiRozmer(k) {
   const hlavni = kalkRadky[0];
   if (hlavni) {
     pripojMaterial(hlavni, k, 'katalog');
-    nactiKatalogoveCeny([k.id]).then(() => vykresliVysledek(hodnoty()));
+    nactiKatalogoveCeny([k.id]).then(() => {
+      vykresliVysledek(hodnoty());
+      if (pamet.cti('kalk-auto', '1') === '1') doplnMaterialy($('#kl-doplnit'));
+    });
   }
 }
 
@@ -2342,6 +2353,76 @@ function pripojMaterial(radek, zdroj, rezim) {
     };
   }
 }
+
+
+/* ---------- předvýběr materiálu z katalogu ---------- */
+/* Klíč řádku → co hledat. Prázdná hodnota znamená, že materiál vybírá uživatel sám
+   (hlavní položka se liší podle výrobce a rozměru). */
+const HLEDAT = {
+  zdivo: { malta: 'zdici malta', pena: 'zdici pena', vyztuz: 'vyztuz zdiva' },
+  sdk: { deska: 'sadrokarton deska', cw: 'profil cw', uw: 'profil uw', srouby: 'srouby sadrokarton',
+    tmel: 'sparovaci tmel', paska: 'vyztuzna paska sadrokarton', izolace: 'izolace mineralni',
+    zaves: 'primy zaves', ua: 'profil ua', kotvy: 'kotva ua', preklad: 'profil ua', tesneni: 'tesnici paska' },
+  plocha: { lepidlo: 'lepidlo na dlazbu', spara: 'sparovaci hmota', krizky: 'sparovaci krizky', soklovky: 'sokl' },
+  objem: { pytle: 'betonova smes', cement: 'cement', pisek: 'pisek', sterk: 'sterk', kari: 'kari sit' },
+  malba: { barva: 'malirska barva', penetrace: 'penetrace', krycka: 'zakryvaci folie', paska: 'malirska paska' },
+  fasada: { izolant: 'fasadni polystyren', lepidlo: 'lepidlo polystyren', hmozdinky: 'talirova hmozdinka',
+    sterka: 'sterkova hmota', perlinka: 'perlinka', penetrace: 'penetrace', omitka: 'silikonova omitka',
+    lista: 'zakladaci lista', rohovnik: 'rohovnik perlinka' }
+};
+
+/** Vybere z nálezů to nejvhodnější: skladem a nejlevnější. */
+function nejlepsiNalez(polozky) {
+  const skladem = polozky.filter(p => Number(p.zasoby?.malesice) > 0 || Number(p.zasoby?.liben) > 0);
+  const zvazit = skladem.length ? skladem : polozky;
+  return zvazit.slice().sort((a, b) => (a.cena_s_dph ?? 1e9) - (b.cena_s_dph ?? 1e9))[0] || null;
+}
+
+async function doplnMaterialy(tlacitko) {
+  const cekaji = kalkRadky.filter(r => !r.material && HLEDAT[kalkDruh]?.[r.klic]);
+  if (!cekaji.length) {
+    toast(kalkRadky.some(r => !r.material)
+      ? 'Zbývající položky si vyber ručně, liší se podle výrobce.'
+      : 'Všechny položky už materiál mají.');
+    return;
+  }
+  const puvodni = tlacitko.textContent;
+  tlacitko.disabled = true; tlacitko.textContent = 'Hledám…';
+
+  let doplneno = 0;
+  for (const r of cekaji) {
+    const dotaz = HLEDAT[kalkDruh][r.klic];
+    const slova = dotaz.split(' ');
+
+    // nejdřív vlastní ceník, ať se drží tvoje ceny
+    const zCeniku = stav.cenik.find(c => slova.every(w => bezDia(c.nazev).includes(w)));
+    if (zCeniku) { pripojMaterial(r, zCeniku, 'cenik'); doplneno++; continue; }
+
+    const nalezy = await hledejKatalog(dotaz, 10);
+    const nej = nejlepsiNalez(nalezy);
+    if (!nej) continue;
+    const puvodniMj = r.mj;
+    pripojMaterial(r, nej, 'katalog');
+    await nactiKatalogoveCeny([nej.id]);
+
+    const prevod = prepoctiMnozstvi(r.mnozstvi, puvodniMj, r.material.mj, nej.id);
+    if (prevod && prevod.mnozstvi != null) {
+      r.mnozstvi = prevod.mnozstvi;
+      r.zaklad += ', přepočteno: ' + prevod.popis;
+    } else if (prevod) {
+      r.zaklad += `, pozor: počítáno v ${puvodniMj}, prodává se na ${r.material.mj}`;
+    }
+    doplneno++;
+  }
+
+  tlacitko.disabled = false; tlacitko.textContent = puvodni;
+  vykresliVysledek(hodnoty());
+  toast(doplneno
+    ? `Předvybráno ${doplneno} ${doplneno === 1 ? 'položka' : 'položek'}. Projdi je a případně vyměň tlačítkem u řádku.`
+    : 'V katalogu jsem nic vhodného nenašel, vyber materiál ručně.', !doplneno);
+}
+
+$('#kl-doplnit').addEventListener('click', e => doplnMaterialy(e.target));
 
 $('#kl-vycistit').addEventListener('click', () => {
   kalkRadky = []; kalkOtvory = [];
