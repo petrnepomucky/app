@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap&subset=latin-ext" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 :root{
   --papir:#F4F5F2; --karta:#FFFFFF; --inkoust:#1D272F; --ocel:#5D6B76;
@@ -153,6 +154,10 @@ dialog::backdrop{background:rgba(29,39,47,.55)}
 .tip{font-size:.83rem;color:var(--ocel);margin:.25rem 0 0}
 .otvor{display:grid;grid-template-columns:1fr 1fr 70px 34px;gap:.5rem;align-items:center;margin-bottom:.5rem}
 .jak{background:#EEF0EC;border-radius:8px;padding:.8rem 1rem;font-size:.9rem;line-height:1.6;margin-top:.9rem;white-space:pre-line}
+.qr-karta{display:flex;gap:1rem;align-items:center;background:#EEF0EC;border-radius:8px;padding:.9rem 1rem;margin-top:.9rem;flex-wrap:wrap}
+.qr-karta canvas{background:#fff;border-radius:6px;padding:.4rem}
+.vysvetlivka{background:#FDF8E6;border-left:4px solid var(--metr);border-radius:0 8px 8px 0;padding:.7rem .9rem;font-size:.9rem;line-height:1.5;margin:.6rem 0}
+.vysvetlivka strong{display:block;margin-bottom:.15rem}
 .kalk-souhrn{padding:.8rem 1rem;border-top:2px solid var(--inkoust);display:flex;gap:1.5rem;flex-wrap:wrap;font-size:.92rem}
 .kalk-radek{display:grid;grid-template-columns:1fr 110px 70px auto;gap:.6rem;align-items:center;padding:.6rem 1rem;border-top:1px solid var(--linka)}
 .kalk-radek:first-child{border-top:0}
@@ -280,6 +285,7 @@ dialog::backdrop{background:rgba(29,39,47,.55)}
           <button class="chip" type="button" data-typ="" aria-pressed="true">Vše</button>
           <button class="chip" type="button" data-typ="nabidka" aria-pressed="false">Nabídky</button>
           <button class="chip" type="button" data-typ="faktura" aria-pressed="false">Faktury</button>
+          <button class="chip" type="button" data-typ="zaloha" aria-pressed="false">Zálohy</button>
           <button class="chip" type="button" data-typ="smlouva" aria-pressed="false">Smlouvy</button>
         </span>
         <button class="btn btn-metr" id="dk-nova-nabidka">Nová nabídka</button>
@@ -295,6 +301,7 @@ dialog::backdrop{background:rgba(29,39,47,.55)}
         <button class="btn btn-tichy" id="d-zpet">← Zpět</button>
         <h1 id="d-nadpis">Doklad</h1>
         <button class="btn btn-tichy" id="d-objednavka">Objednávkový list</button>
+        <button class="btn btn-tichy" id="d-na-zalohu">Zálohová faktura</button>
         <button class="btn btn-tichy" id="d-na-smlouvu">Vytvořit smlouvu</button>
         <button class="btn btn-tichy" id="d-na-fakturu">Vystavit fakturu</button>
         <button class="btn btn-tichy" id="d-tisk">Tisk / PDF</button>
@@ -322,6 +329,34 @@ dialog::backdrop{background:rgba(29,39,47,.55)}
           <div class="radek" data-jen-faktura><label for="d-vs">Variabilní symbol</label><input id="d-vs" class="pole" inputmode="numeric"></div>
           <div class="radek" data-jen-faktura><label for="d-platba">Způsob platby</label>
             <select id="d-platba" class="pole"><option value="">–</option><option>Převodem</option><option>Hotově</option><option>Kartou</option></select></div>
+          <div class="radek" data-dph-rezim><label for="d-rezim">Režim DPH</label>
+            <select id="d-rezim" class="pole">
+              <option value="bezna">Běžný režim – DPH účtuji já</option>
+              <option value="prenesena">Přenesená daňová povinnost (§ 92e)</option>
+            </select></div>
+          <div class="radek" data-jen-faktura><label for="d-odpocet">Odpočet zálohy</label>
+            <div class="pole-mj"><input id="d-odpocet" class="pole" inputmode="decimal" style="padding-right:2.6rem"><span class="jednotka">Kč</span></div></div>
+        </div>
+
+        <div class="vysvetlivka skryt" id="d-vysvetlivka-pdp">
+          <strong>Přenesená daňová povinnost</strong>
+          Používá se u stavebních a montážních prací, když je odběratel plátce DPH. Ty na faktuře DPH nevyčíslíš,
+          daň si spočítá a odvede odběratel. Aplikace proto všem položkám nastaví sazbu 0 % a na fakturu doplní povinnou větu.
+          Pro domácnosti a neplátce tenhle režim nepoužívej.
+        </div>
+
+        <div class="vysvetlivka skryt" id="d-vysvetlivka-zaloha">
+          <strong>Zálohová faktura</strong>
+          Je to výzva k zaplacení předem, ne daňový doklad. Po dokončení práce vystav konečnou fakturu a zaplacenou zálohu
+          v ní odečti v poli „Odpočet zálohy“. Zákazník pak doplácí jen rozdíl.
+        </div>
+
+        <div class="qr-karta skryt" id="d-qr">
+          <canvas id="d-qr-obraz" width="140" height="140"></canvas>
+          <div>
+            <strong>QR platba</strong>
+            <div class="p-meta" id="d-qr-popis"></div>
+          </div>
         </div>
         <div class="radek"><label for="d-uvod">Předmět díla / úvodní text</label><textarea id="d-uvod" class="pole" rows="2" placeholder="Např. Rekonstrukce koupelny v bytě č. 4…"></textarea></div>
 
@@ -465,7 +500,8 @@ dialog::backdrop{background:rgba(29,39,47,.55)}
         <div class="radek"><label for="f-adresa">Adresa</label><input id="f-adresa" class="pole" placeholder="Ulice, město, PSČ"></div>
         <div class="mrizka">
           <div class="radek"><label for="f-telefon">Telefon</label><input id="f-telefon" class="pole"></div>
-          <div class="radek"><label for="f-ucet">Číslo účtu</label><input id="f-ucet" class="pole" placeholder="123456789/0100"></div>
+          <div class="radek"><label for="f-ucet">Číslo účtu</label><input id="f-ucet" class="pole" placeholder="123456789/0100">
+            <p class="napoveda" id="f-iban">Zadej ve tvaru 123456789/0100 nebo rovnou IBAN. Podle něj se na faktury tiskne QR platba.</p></div>
         </div>
         <div class="radek"><label class="zatrzitko"><input type="checkbox" id="f-platce"> Jsem plátce DPH</label></div>
         <button class="btn" type="submit" id="f-ulozit">Uložit údaje</button>
@@ -729,6 +765,13 @@ function vykresliFirmu() {
   const vlastnik = stav.role === 'vlastnik';
   $$('#f-firma input, #f-firma button').forEach(x => { x.disabled = !vlastnik; });
 }
+
+$('#f-ucet').addEventListener('input', () => {
+  const iban = ibanZUctu($('#f-ucet').value);
+  $('#f-iban').textContent = iban
+    ? 'IBAN pro QR platbu: ' + iban
+    : 'Zadej ve tvaru 123456789/0100 nebo rovnou IBAN. Podle něj se na faktury tiskne QR platba.';
+});
 
 $('#f-firma').addEventListener('submit', async e => {
   e.preventDefault();
@@ -1178,13 +1221,13 @@ function vykresliDoklady() {
   const radky = stav.doklady.filter(d => (!t || d.typ === t) &&
     (!f || bezDia(d.cislo).includes(f) || bezDia(d.odberatel?.nazev).includes(f)));
   if (!radky.length) {
-    el.innerHTML = `<div class="prazdno">${t === 'nabidka' ? 'Zatím žádná nabídka.' : t === 'faktura' ? 'Zatím žádná faktura.' : t === 'smlouva' ? 'Zatím žádná smlouva.' : 'Filtru nic neodpovídá.'}</div>`;
+    el.innerHTML = `<div class="prazdno">${t === 'nabidka' ? 'Zatím žádná nabídka.' : t === 'faktura' ? 'Zatím žádná faktura.' : t === 'smlouva' ? 'Zatím žádná smlouva.' : t === 'zaloha' ? 'Zatím žádná zálohová faktura.' : 'Filtru nic neodpovídá.'}</div>`;
     return;
   }
   el.innerHTML = radky.map(d => `<button class="rada rada-doklad" data-id="${esc(d.id)}">
       <span class="cislo-dokladu">${esc(d.cislo)}</span>
       <span><span class="p-nazev">${esc(d.odberatel?.nazev || 'Bez odběratele')}</span>
-        <span class="p-meta" style="display:block">${esc(d.typ === 'faktura' ? 'Faktura' : d.typ === 'smlouva' ? 'Smlouva o dílo' : 'Nabídka')}, ${esc(datum(d.datum_vystaveni))}</span></span>
+        <span class="p-meta" style="display:block">${esc(d.typ === 'faktura' ? 'Faktura' : d.typ === 'smlouva' ? 'Smlouva o dílo' : d.typ === 'zaloha' ? 'Zálohová faktura' : 'Nabídka')}, ${esc(datum(d.datum_vystaveni))}</span></span>
       <span class="stitek d-stav${d.stav === 'zaplaceno' || d.stav === 'prijato' ? ' ok' : d.stav === 'stornovano' ? ' varovani' : ''}">${esc(STAVY[d.stav] || d.stav)}</span>
       <span class="c-ceny"><span class="cena">${kc(d.celkem_s_dph)}</span>s DPH</span>
     </button>`).join('');
@@ -1214,6 +1257,9 @@ async function novyDoklad(typ, zaklad = null) {
   if (zaklad) {
     z.kontakt_id = zaklad.kontakt_id; z.odberatel = zaklad.odberatel;
     z.uvod = zaklad.uvod; z.poznamka = zaklad.poznamka;
+    if (zaklad.zdroj_doklad_id) z.zdroj_doklad_id = zaklad.zdroj_doklad_id;
+    if (zaklad.rezim_dph) z.rezim_dph = zaklad.rezim_dph;
+    if (zaklad.odpocet_zalohy) z.odpocet_zalohy = zaklad.odpocet_zalohy;
   }
   const { data, error: e2 } = await sb.from('doklady').insert(z).select().single();
   if (e2) return toast('Doklad se nepodařilo založit: ' + prelozChybu(e2), true);
@@ -1238,8 +1284,8 @@ async function otevriDoklad(id) {
   if (e1 || e2) return toast('Doklad se nepodařilo načíst: ' + prelozChybu(e1 || e2), true);
   stav.doklad = d;
   stav.polozky = (p || []).map(x => ({ ...x }));
-  const faktura = d.typ === 'faktura', smlouva = d.typ === 'smlouva';
-  $('#d-nadpis').textContent = (faktura ? 'Faktura ' : smlouva ? 'Smlouva o dílo ' : 'Nabídka ') + d.cislo;
+  const faktura = d.typ === 'faktura', smlouva = d.typ === 'smlouva', zaloha = d.typ === 'zaloha';
+  $('#d-nadpis').textContent = (faktura ? 'Faktura ' : smlouva ? 'Smlouva o dílo ' : zaloha ? 'Zálohová faktura ' : 'Nabídka ') + d.cislo;
   $('#d-kontakt').value = d.kontakt_id || '';
   $('#d-stav').value = d.stav;
   $('#d-vystaveni').value = d.datum_vystaveni || dnes();
@@ -1256,11 +1302,17 @@ async function otevriDoklad(id) {
   $('#d-zaloha').value = vPole(d.zaloha_pct);
   $('#d-text').value = d.smluvni_text || '';
   if (smlouva && !d.smluvni_text) $('#d-text').value = stav.firma.sablona_smlouvy || '';
-  $$('[data-jen-faktura]').forEach(x => x.classList.toggle('skryt', !faktura));
+  $('#d-rezim').value = d.rezim_dph || 'bezna';
+  $('#d-odpocet').value = d.odpocet_zalohy ? vPole(d.odpocet_zalohy) : '';
+  $$('[data-jen-faktura]').forEach(x => x.classList.toggle('skryt', !faktura && !zaloha));
   $$('[data-jen-smlouva]').forEach(x => x.classList.toggle('skryt', !smlouva));
+  $$('[data-dph-rezim]').forEach(x => x.classList.toggle('skryt', !stav.firma.platce_dph));
+  $('#d-vysvetlivka-pdp').classList.toggle('skryt', (d.rezim_dph || 'bezna') !== 'prenesena');
+  $('#d-vysvetlivka-zaloha').classList.toggle('skryt', !zaloha);
   $('#d-na-fakturu').classList.toggle('skryt', faktura);
-  $('#d-na-smlouvu').classList.toggle('skryt', smlouva || faktura);
-  $('#d-objednavka').classList.toggle('skryt', faktura);
+  $('#d-na-zalohu').classList.toggle('skryt', faktura || zaloha);
+  $('#d-na-smlouvu').classList.toggle('skryt', smlouva || faktura || zaloha);
+  $('#d-objednavka').classList.toggle('skryt', faktura || zaloha);
   $('#d-info').textContent = 'Ceny na dokladu jsou uzamčené. Pozdější změna ceníku ani noční import je nezmění.';
   vykresliPolozky();
   prepniTab('doklad');
@@ -1271,6 +1323,7 @@ async function otevriDoklad(id) {
     if (!$('#d-text').value.trim()) $('#d-text').value = textSmlouvy();
     obnovNahled();
   }
+  obnovQr();
 }
 $('#d-zpet').addEventListener('click', () => { stav.doklad = null; prepniTab(stav.predchoziTab === 'doklad' ? 'doklady' : stav.predchoziTab); nactiDoklady(); });
 
@@ -1315,14 +1368,14 @@ $('#d-polozky').addEventListener('click', e => {
     if (rezim === 'cenik') {
       Object.assign(p, { cenik_id: zdroj.id, katalog_id: zdroj.katalog_id || null, typ: zdroj.typ || 'material',
         nazev: zdroj.nazev, mj: zdroj.mj || p.mj, cena_bez_dph: zdroj.prodejni_bez_dph ?? 0,
-        sazba_dph: stav.firma.platce_dph ? Number(zdroj.sazba_dph ?? 21) : 0 });
+        sazba_dph: sazbaProDoklad(zdroj.sazba_dph) });
     } else {
       const sazba = Number(zdroj.sazba_dph ?? 21);
       const vCeniku = stav.cenik.find(c => c.katalog_id === zdroj.id);
       Object.assign(p, { cenik_id: vCeniku?.id || null, katalog_id: zdroj.id, typ: 'material',
         nazev: zdroj.nazev, mj: (zdroj.mj || p.mj || '').toLowerCase(),
         cena_bez_dph: vCeniku?.prodejni_bez_dph ?? (zdroj.cena_s_dph != null ? zaokr(zdroj.cena_s_dph / (1 + sazba / 100)) : 0),
-        sazba_dph: stav.firma.platce_dph ? sazba : 0, poznamka: p.poznamka || ('Kód ' + zdroj.kod) });
+        sazba_dph: sazbaProDoklad(sazba), poznamka: p.poznamka || ('Kód ' + zdroj.kod) });
     }
     p.mnozstvi = mn;
     await nactiKatalogoveCeny([p.katalog_id]);
@@ -1349,7 +1402,10 @@ function souhrnDoklad() {
     const c = zaokr((Number(p.mnozstvi) || 0) * (Number(p.cena_bez_dph) || 0) * (1 - (Number(p.sleva_pct) || 0) / 100));
     bez += c; dph += zaokr(c * (Number(p.sazba_dph) || 0) / 100);
   });
-  $('#d-bez').textContent = kc(bez); $('#d-dph').textContent = kc(dph); $('#d-celkem').textContent = kc(bez + dph);
+  const odpocet = cislo($('#d-odpocet').value) ?? 0;
+  $('#d-bez').textContent = kc(bez);
+  $('#d-dph').textContent = $('#d-rezim').value === 'prenesena' ? 'odvede odběratel' : kc(dph);
+  $('#d-celkem').textContent = odpocet ? kc(bez + dph - odpocet) + ' po odpočtu' : kc(bez + dph);
   return { bez: zaokr(bez), dph: zaokr(dph) };
 }
 
@@ -1447,7 +1503,7 @@ let vyberCallback = null;   // když je vyplněný, vybraná položka se předá
 $('#d-z-ceniku').addEventListener('click', () => otevriVyber('cenik'));
 $('#d-z-katalogu').addEventListener('click', () => otevriVyber('katalog'));
 $('#d-volna').addEventListener('click', () => {
-  stav.polozky.push({ typ: 'ostatni', nazev: '', mj: '', mnozstvi: 1, cena_bez_dph: 0, sleva_pct: 0, sazba_dph: stav.firma.platce_dph ? 21 : 0 });
+  stav.polozky.push({ typ: 'ostatni', nazev: '', mj: '', mnozstvi: 1, cena_bez_dph: 0, sleva_pct: 0, sazba_dph: sazbaProDoklad(21) });
   vykresliPolozky();
   const posl = $('#d-polozky').lastElementChild?.querySelector('input'); posl?.focus();
 });
@@ -1532,7 +1588,7 @@ $('#vd-seznam').addEventListener('click', e => {
       cenik_id: vCeniku?.id || null, katalog_id: k.id, typ: 'material', nazev: k.nazev, mj: (k.mj || '').toLowerCase(),
       mnozstvi: 1,
       cena_bez_dph: vCeniku?.prodejni_bez_dph ?? (k.cena_s_dph != null ? zaokr(k.cena_s_dph / (1 + sazba / 100)) : 0),
-      sleva_pct: 0, sazba_dph: stav.firma.platce_dph ? sazba : 0, poznamka: 'Kód ' + k.kod
+      sleva_pct: 0, sazba_dph: sazbaProDoklad(sazba), poznamka: 'Kód ' + k.kod
     });
   }
   dlgVyber.close();
@@ -1607,6 +1663,8 @@ async function ulozDoklad(tise = false) {
     termin_do: $('#d-do').value || null,
     zaruka_mesice: cislo($('#d-zaruka').value),
     zaloha_pct: cislo($('#d-zaloha').value),
+    rezim_dph: $('#d-rezim').value || 'bezna',
+    odpocet_zalohy: cislo($('#d-odpocet').value) ?? 0,
     smluvni_text: $('#d-text').value.trim() || null
   };
   $('#d-ulozit').disabled = true;
@@ -1644,11 +1702,23 @@ $('#d-smazat').addEventListener('click', async () => {
 $('#d-na-fakturu').addEventListener('click', async () => {
   if (!(await ulozDoklad(true))) return;
   await doCeniku();
+  const zdroj = stav.doklad;
+
+  // zálohy vystavené k tomuto dokladu se odečtou z konečné faktury
+  const { data: zalohy } = await sb.from('doklady')
+    .select('cislo, celkem_s_dph, stav')
+    .eq('firma_id', stav.firma.id).eq('typ', 'zaloha').eq('zdroj_doklad_id', zdroj.id);
+  const odpocet = (zalohy || []).filter(z => z.stav !== 'stornovano')
+    .reduce((sum, z) => sum + Number(z.celkem_s_dph || 0), 0);
+
   await novyDoklad('faktura', {
-    kontakt_id: stav.doklad.kontakt_id, odberatel: stav.doklad.odberatel,
-    uvod: stav.doklad.uvod, poznamka: stav.doklad.poznamka, polozky: stav.polozky
+    kontakt_id: zdroj.kontakt_id, odberatel: zdroj.odberatel,
+    uvod: zdroj.uvod, poznamka: zdroj.poznamka, polozky: stav.polozky,
+    zdroj_doklad_id: zdroj.id, rezim_dph: zdroj.rezim_dph, odpocet_zalohy: zaokr(odpocet)
   });
-  toast('Faktura vystavená z nabídky.');
+  toast(odpocet
+    ? `Faktura vystavená, odečetl jsem zálohy za ${kc(odpocet)}.`
+    : 'Faktura vystavená z nabídky.');
 });
 
 /* ================= KALKULAČKY SPOTŘEBY ================= */
@@ -2312,7 +2382,7 @@ $('#kl-do-nabidky').addEventListener('click', async () => {
       cenik_id: m?.cenik_id || null, katalog_id: m?.katalog_id || null,
       typ: m?.typ || 'material', nazev: m?.nazev || r.nazev, mj: m?.mj || r.mj,
       mnozstvi: r.mnozstvi, cena_bez_dph: m?.cena ?? 0, sleva_pct: 0,
-      sazba_dph: stav.firma.platce_dph ? (m?.sazba_dph ?? 21) : 0,
+      sazba_dph: sazbaProDoklad(m?.sazba_dph),
       mnozstviPozor: !!(m && mjNorm(m.mj) !== mjNorm(r.mj)),
       poznamka: KALK[kalkDruh].nazev + ': ' + r.zaklad
     });
@@ -2541,6 +2611,129 @@ function tiskSmlouva() {
   window.print();
 }
 
+
+/* ================= PLATBY, ZÁLOHY A REŽIM DPH ================= */
+
+/** Číslo účtu 123456789/0100 převede na IBAN, který potřebuje QR platba. */
+function mod97(t) { let z = 0; for (const ch of t) z = (z * 10 + Number(ch)) % 97; return z; }
+
+function ibanZUctu(ucet) {
+  const t = String(ucet || '').replace(/\s/g, '').toUpperCase();
+  if (/^CZ\d{22}$/.test(t)) return t;
+  const m = t.match(/^(?:(\d{1,6})-)?(\d{1,10})\/(\d{4})$/);
+  if (!m) return '';
+  const [, pred = '', cislo, banka] = m;
+  const bban = banka + pred.padStart(6, '0') + cislo.padStart(10, '0');
+  return 'CZ' + String(98 - mod97(bban + '123500')).padStart(2, '0') + bban;
+}
+
+/** Řetězec QR platby podle českého standardu Short Payment Descriptor. */
+function spayd(castka, vs, zprava) {
+  const iban = ibanZUctu(firmaBlok().ucet);
+  if (!iban || !(castka > 0)) return '';
+  const casti = ['SPD*1.0', 'ACC:' + iban, 'AM:' + castka.toFixed(2), 'CC:CZK'];
+  if (vs) casti.push('X-VS:' + String(vs).replace(/\D/g, '').slice(0, 10));
+  if (zprava) casti.push('MSG:' + zprava.normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 60));
+  return casti.join('*');
+}
+
+/** Sazba DPH pro nové položky – nula u neplátce i v přeneseném režimu. */
+function sazbaProDoklad(navrh) {
+  if (!stav.firma.platce_dph) return 0;
+  if ($('#d-rezim').value === 'prenesena') return 0;
+  return Number(navrh ?? 21);
+}
+
+const jeUhradovy = t => t === 'faktura' || t === 'zaloha';
+
+/** Kolik zbývá doplatit po odečtení zaplacené zálohy. */
+function kUhrade() {
+  const s = souhrnDoklad();
+  return zaokr(s.bez + s.dph - (cislo($('#d-odpocet').value) ?? 0));
+}
+
+function obnovQr() {
+  const d = stav.doklad;
+  const karta = $('#d-qr');
+  if (!d || !jeUhradovy(d.typ)) { karta.classList.add('skryt'); return; }
+  const castka = kUhrade();
+  const kod = spayd(castka, $('#d-vs').value || d.cislo, d.typ === 'zaloha' ? 'Zaloha ' + d.cislo : 'Faktura ' + d.cislo);
+  if (!kod || typeof QRCode === 'undefined') {
+    karta.classList.remove('skryt');
+    $('#d-qr-popis').textContent = ibanZUctu(firmaBlok().ucet)
+      ? 'Doplň částku, aby šel kód vytvořit.'
+      : 'Doplň číslo účtu v kartě Firma a QR platba se vytvoří sama.';
+    const c = $('#d-qr-obraz').getContext('2d');
+    c.clearRect(0, 0, 140, 140);
+    return;
+  }
+  karta.classList.remove('skryt');
+  QRCode.toCanvas($('#d-qr-obraz'), kod, { width: 140, margin: 1 }, err => {
+    $('#d-qr-popis').textContent = err
+      ? 'Kód se nepodařilo vytvořit.'
+      : `Zákazník načte kód v bankovní aplikaci a zaplatí ${kc(castka)}. Vytiskne se i na doklad.`;
+  });
+}
+
+async function qrDataUrl() {
+  const d = stav.doklad;
+  const kod = spayd(kUhrade(), $('#d-vs').value || d.cislo, (d.typ === 'zaloha' ? 'Zaloha ' : 'Faktura ') + d.cislo);
+  if (!kod || typeof QRCode === 'undefined') return '';
+  try { return await QRCode.toDataURL(kod, { width: 320, margin: 1 }); } catch (e) { return ''; }
+}
+
+/* ---- přepínání režimu DPH ---- */
+$('#d-rezim').addEventListener('change', () => {
+  const prenesena = $('#d-rezim').value === 'prenesena';
+  $('#d-vysvetlivka-pdp').classList.toggle('skryt', !prenesena);
+  if (prenesena) {
+    stav.polozky.forEach(p => { p.sazba_dph = 0; });
+    toast('Všem položkám jsem nastavil DPH 0 %. Daň odvede odběratel.');
+  } else if (stav.firma.platce_dph) {
+    stav.polozky.forEach(p => { if (!Number(p.sazba_dph)) p.sazba_dph = 21; });
+    toast('Vráceno do běžného režimu, položky mají 21 %.');
+  }
+  vykresliPolozky();
+  obnovQr();
+});
+
+$('#d-odpocet').addEventListener('input', obnovQr);
+$('#d-vs').addEventListener('input', obnovQr);
+
+/* ---- zálohová faktura ---- */
+$('#d-na-zalohu').addEventListener('click', async () => {
+  if (!(await ulozDoklad(true))) return;
+  const zdroj = stav.doklad;
+  const celkem = zaokr(zdroj.celkem_s_dph || souhrnDoklad().bez + souhrnDoklad().dph);
+  if (!celkem) return toast('Doklad nemá žádné položky, není z čeho zálohu spočítat.', true);
+
+  const navrh = zdroj.zaloha_pct ?? 30;
+  const zadane = prompt(`Jakou zálohu vyfakturovat?\n\nZadej procenta z ${kc(celkem)} (například ${ks(navrh)}), nebo částku v Kč se znakem Kč.`, String(navrh));
+  if (zadane === null) return;
+  const cistyVstup = String(zadane).replace(/\s/g, '');
+  const castka = /kč|kc/i.test(cistyVstup)
+    ? zaokr(cislo(cistyVstup.replace(/kč|kc/gi, '')) ?? 0)
+    : zaokr(celkem * (cislo(cistyVstup) ?? 0) / 100);
+  if (!(castka > 0)) return toast('Zadej kladné číslo.', true);
+
+  await novyDoklad('zaloha', {
+    kontakt_id: zdroj.kontakt_id, odberatel: zdroj.odberatel,
+    uvod: `Záloha na dílo podle ${zdroj.typ === 'smlouva' ? 'smlouvy' : 'nabídky'} č. ${zdroj.cislo}.`,
+    polozky: [{
+      typ: 'ostatni',
+      nazev: `Záloha podle ${zdroj.typ === 'smlouva' ? 'smlouvy' : 'nabídky'} č. ${zdroj.cislo}`,
+      mj: 'ks', mnozstvi: 1,
+      cena_bez_dph: stav.firma.platce_dph && zdroj.rezim_dph !== 'prenesena' ? zaokr(castka / 1.21) : castka,
+      sleva_pct: 0,
+      sazba_dph: stav.firma.platce_dph && zdroj.rezim_dph !== 'prenesena' ? 21 : 0,
+      poznamka: cistyVstup.match(/kč|kc/i) ? null : `${ks(cislo(cistyVstup))} % z ${kc(celkem)}`
+    }],
+    zdroj_doklad_id: zdroj.id,
+    rezim_dph: zdroj.rezim_dph
+  });
+  toast(`Zálohová faktura na ${kc(castka)} vytvořená. Zkontroluj ji a ulož.`);
+});
+
 /* ================= TISK ================= */
 function firmaBlok() {
   const f = stav.firma;
@@ -2592,9 +2785,13 @@ $('#kd-ares').addEventListener('click', async e => {
   toast('Údaje doplněny z ARES. Zkontroluj je a ulož.');
 });
 
-function tiskDoklad() {
-  const d = stav.doklad, o = d.odberatel || {}, f = firmaBlok(), s = souhrnDoklad();
-  const faktura = d.typ === 'faktura';
+async function tiskDoklad() {
+  const d = stav.doklad, o = aktualniOdberatel(), f = firmaBlok(), s = souhrnDoklad();
+  const faktura = d.typ === 'faktura', zaloha = d.typ === 'zaloha';
+  const uhradovy = faktura || zaloha;
+  const prenesena = $('#d-rezim').value === 'prenesena';
+  const odpocet = cislo($('#d-odpocet').value) ?? 0;
+  const qr = uhradovy ? await qrDataUrl() : '';
   const radky = stav.polozky.filter(p => (p.nazev || '').trim()).map((p, i) => {
     const c = zaokr((Number(p.mnozstvi) || 0) * (Number(p.cena_bez_dph) || 0) * (1 - (Number(p.sleva_pct) || 0) / 100));
     return `<tr><td class="c">${i + 1}</td><td>${esc(p.nazev)}</td><td class="c">${ks(p.mnozstvi)}</td>
@@ -2604,9 +2801,9 @@ function tiskDoklad() {
   }).join('');
   $('#tisk').innerHTML = `
     <div class="tisk-hlava">
-      <div><h1>${faktura ? 'Faktura' : 'Cenová nabídka'} ${esc(d.cislo)}</h1>
+      <div><h1>${faktura ? 'Faktura' : zaloha ? 'Zálohová faktura' : 'Cenová nabídka'} ${esc(d.cislo)}</h1>
         <div>Vystaveno ${esc(datum(d.datum_vystaveni))}${faktura && d.datum_plneni ? ', datum plnění ' + esc(datum(d.datum_plneni)) : ''}</div>
-        ${faktura ? `<div>Splatnost ${esc(datum(d.datum_splatnosti))}${d.variabilni_symbol ? ', VS ' + esc(d.variabilni_symbol) : ''}</div>` : ''}</div>
+        ${uhradovy ? `<div>Splatnost ${esc(datum(d.datum_splatnosti))}${d.variabilni_symbol ? ', VS ' + esc(d.variabilni_symbol) : ''}</div>` : ''}</div>
       <div style="text-align:right"><strong>${esc(f.nazev)}</strong><br>${esc(f.adresa)}<br>
         ${f.ico ? 'IČO ' + esc(f.ico) : ''} ${f.dic ? ' DIČ ' + esc(f.dic) : ''}<br>${esc(f.telefon)}</div>
     </div>
@@ -2624,11 +2821,19 @@ function tiskDoklad() {
       <tbody>${radky}</tbody></table>
     <div class="tisk-souhrn"><table>
       <tr><td>Základ bez DPH</td><td class="c">${kc(s.bez)}</td></tr>
-      <tr><td>DPH</td><td class="c">${kc(s.dph)}</td></tr>
-      <tr><td><strong>Celkem k úhradě</strong></td><td class="c"><strong>${kc(s.bez + s.dph)}</strong></td></tr>
+      <tr><td>DPH</td><td class="c">${prenesena ? 'odvede odběratel' : kc(s.dph)}</td></tr>
+      <tr><td>Celkem</td><td class="c">${kc(s.bez + s.dph)}</td></tr>
+      ${odpocet ? `<tr><td>Uhrazená záloha</td><td class="c">− ${kc(odpocet)}</td></tr>` : ''}
+      <tr><td><strong>${uhradovy ? 'K úhradě' : 'Celkem'}</strong></td><td class="c"><strong>${kc(s.bez + s.dph - odpocet)}</strong></td></tr>
     </table></div>
+    ${qr ? `<div style="display:flex;gap:12px;align-items:center;justify-content:flex-end;margin-top:10px">
+      <img src="${qr}" alt="QR platba" style="width:110px;height:110px">
+      <div style="font-size:11px">QR platba<br>Načtěte v bankovní aplikaci<br>a platba se předvyplní.</div></div>` : ''}
     ${d.poznamka ? `<p>${esc(d.poznamka)}</p>` : ''}
-    <div class="tisk-pata">${faktura
+    ${prenesena ? '<p><strong>Daň odvede zákazník.</strong> Režim přenesení daňové povinnosti podle § 92e zákona č. 235/2004 Sb., o dani z přidané hodnoty.</p>' : ''}
+    <div class="tisk-pata">${zaloha
+      ? 'Zálohová faktura není daňovým dokladem. Uhraďte prosím na uvedený účet do data splatnosti.'
+      : faktura
       ? 'Fakturu uhraďte na uvedený účet do data splatnosti.'
       : 'Ceny materiálu platí ke dni vystavení nabídky a řídí se aktuálním ceníkem dodavatele.'}</div>`;
   window.print();
@@ -2636,7 +2841,7 @@ function tiskDoklad() {
 $('#d-tisk').addEventListener('click', async () => {
   if (!(await ulozDoklad(true))) return;
   await doCeniku();
-  if (stav.doklad.typ === 'smlouva') tiskSmlouva(); else tiskDoklad();
+  if (stav.doklad.typ === 'smlouva') tiskSmlouva(); else await tiskDoklad();
 });
 
 $('#d-objednavka').addEventListener('click', async () => {
