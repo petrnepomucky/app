@@ -1,0 +1,853 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#0b0b0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pixel Trezor">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Pixel Trezor</title>
+<style>
+  /* Layout: jednosloupcový nástroj, dvě záložky (Skrýt / Odhalit); černo-zlaté "trezor" téma, committed dark */
+  :root {
+    --bg: #0b0b0c;
+    --surface: #151414;
+    --surface-2: #201e1b;
+    --line: #322e28;
+    --fg: #f2ede2;
+    --fg-soft: #a69c88;
+    --gold: #d8b25c;
+    --gold-deep: #bd9640;
+    --gold-soft: rgba(216,178,92,.13);
+    --danger: #e3826a;
+    --warn-fg: #e0b45c;
+    --ok-fg: #d8b25c;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    color-scheme: dark;
+    --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
+    --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 30px 56px;
+  }
+
+  header { margin-bottom: 22px; }
+  .eyebrow {
+    font-family: var(--font-display);
+    font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+    font-size: .68rem; color: var(--gold);
+    display: inline-flex; align-items: center; gap: 9px;
+  }
+  .eyebrow::before {
+    content: ""; width: 20px; height: 20px; flex: none;
+    border-radius: 5px; background: var(--gold-soft);
+    border: 1px solid var(--gold);
+    background-image: linear-gradient(var(--gold),var(--gold));
+    background-size: 8px 7px; background-position: center 11px; background-repeat: no-repeat;
+    box-shadow: inset 0 0 0 2.5px var(--bg), inset 0 3px 0 2.5px var(--bg);
+    position: relative;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700; font-size: clamp(1.9rem, 6vw, 2.5rem);
+    margin: 10px 0 4px; letter-spacing: -.01em; text-wrap: balance;
+    color: var(--fg);
+  }
+  .rule {
+    height: 3px; width: 72px; margin: 10px 0 14px;
+    background: repeating-linear-gradient(90deg, var(--gold) 0 2px, transparent 2px 7px);
+    opacity: .9;
+  }
+  .sub { color: var(--fg-soft); max-width: 60ch; font-size: .95rem; }
+
+  .tabs {
+    display: flex; gap: 4px; margin: 24px 0 18px;
+    background: var(--surface); padding: 4px; border-radius: 12px;
+    width: fit-content; border: 1px solid var(--line);
+  }
+  .tab {
+    font: inherit; font-family: var(--font-display); font-weight: 600; font-size: .9rem;
+    border: 0; background: transparent; color: var(--fg-soft);
+    padding: 9px 22px; border-radius: 9px; cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .tab[aria-selected="true"] {
+    background: var(--gold); color: #141007;
+  }
+  .tab:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-family: var(--font-display);
+    font-size: 1.02rem; font-weight: 600; margin: 0 0 3px;
+    display: flex; align-items: center; gap: 9px;
+  }
+  .step-no {
+    font-size: .72rem; font-weight: 700; color: var(--gold);
+    background: var(--gold-soft); border: 1px solid var(--line);
+    border-radius: 6px; padding: 2px 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card .hint { color: var(--fg-soft); font-size: .85rem; margin: 2px 0 14px; }
+
+  /* Drop zóna — flex sloupec, nic nepřetéká */
+  .drop {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; text-align: center; width: 100%;
+    border: 1.5px dashed var(--line); border-radius: 12px;
+    padding: 26px 16px; cursor: pointer; background: var(--surface-2);
+    color: var(--fg-soft); transition: border-color .15s, background .15s;
+  }
+  .drop:hover, .drop.over { border-color: var(--gold); background: var(--gold-soft); }
+  .drop input { display: none; }
+  .drop-title { color: var(--fg); font-weight: 600; font-size: .95rem; }
+  .drop-sub { font-size: .82rem; }
+
+  .filelist { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .filelist li {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 9px; padding: 8px 10px; font-size: .85rem; min-width: 0;
+  }
+  .filelist .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .filelist .sz { color: var(--fg-soft); font-variant-numeric: tabular-nums; font-size: .78rem; white-space: nowrap; }
+  .filelist button {
+    border: 0; background: transparent; color: var(--fg-soft); cursor: pointer;
+    font-size: 1.1rem; line-height: 1; padding: 0 4px;
+  }
+  .filelist button:hover { color: var(--gold); }
+
+  .preview-row { display: flex; gap: 14px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+  .preview-row img {
+    width: 92px; height: 92px; object-fit: cover; border-radius: 10px;
+    border: 1px solid var(--gold-deep); max-width: 100%;
+  }
+  .meta { font-size: .82rem; color: var(--fg-soft); min-width: 0; }
+  .meta b { color: var(--fg); font-weight: 600; }
+
+  .capacity { margin-top: 16px; }
+  .bar { height: 8px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--gold); width: 0; transition: width .25s; }
+  .bar.over > span { background: var(--danger); }
+  .cap-txt { font-size: .8rem; color: var(--fg-soft); margin-top: 7px; font-variant-numeric: tabular-nums; }
+
+  .optrow {
+    display: flex; align-items: flex-start; gap: 9px; cursor: pointer;
+    font-size: .9rem; margin: 2px 0 10px; user-select: none;
+  }
+  .optrow input { margin-top: 3px; accent-color: var(--gold); width: 16px; height: 16px; flex: none; }
+  .optnote { color: var(--fg-soft); font-size: .82rem; }
+  .pwrow { margin: 0 0 14px; display: flex; flex-direction: column; gap: 6px; }
+  .pwrow input[type="password"] {
+    font: inherit; font-size: .92rem; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 9px;
+    background: var(--surface-2); color: var(--fg); width: 100%;
+  }
+  .pwrow input[type="password"]:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; border-color: var(--gold); }
+  .pwhint { font-size: .78rem; color: var(--warn-fg); }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
+  .btn {
+    font: inherit; font-family: var(--font-display); font-weight: 600; font-size: .92rem;
+    border: 0; border-radius: 10px; padding: 12px 24px; cursor: pointer;
+    background: var(--gold); color: #141007; transition: background .15s, opacity .15s;
+  }
+  .btn:hover:not(:disabled) { background: var(--gold-deep); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.ghost { background: var(--surface-2); color: var(--fg); border: 1px solid var(--line); }
+  .btn.ghost:hover:not(:disabled) { background: var(--line); }
+  .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  .msg { border-radius: 10px; padding: 12px 14px; font-size: .86rem; margin-top: 14px; display: none; border: 1px solid transparent; }
+  .msg.show { display: block; }
+  .msg.ok { background: var(--gold-soft); color: var(--ok-fg); border-color: var(--gold-deep); }
+  .msg.warn { background: rgba(224,180,92,.1); color: var(--warn-fg); border-color: var(--warn-fg); }
+  .msg.err { background: rgba(227,130,106,.12); color: var(--danger); border-color: var(--danger); }
+
+  .result { margin-top: 16px; display: none; }
+  .result.show { display: block; }
+  .result img { max-width: 100%; border-radius: 11px; border: 1px solid var(--line); }
+  .result .filelist { margin-top: 4px; }
+
+  canvas { display: none; }
+
+  footer { margin-top: 32px; font-size: .78rem; color: var(--fg-soft); line-height: 1.6; }
+  footer code { font-family: var(--font-mono); font-size: .9em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; color: var(--gold); }
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&display=swap">
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Skrývání souborů do obrázků</span>
+    <h1>Pixel Trezor</h1>
+    <div class="rule"></div>
+    <p class="sub">Zabalí vybrané soubory a ukryje je do pixelů obrázku. Výsledkem je obyčejně vypadající PNG, ze kterého lze data zase vytáhnout — volitelně zašifrované heslem. Všechno běží ve vašem prohlížeči, nic se neodesílá.</p>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-hide" aria-selected="true" aria-controls="panel-hide">Skrýt</button>
+    <button class="tab" role="tab" id="tab-reveal" aria-selected="false" aria-controls="panel-reveal">Odhalit</button>
+  </div>
+
+  <!-- ===================== SKRÝT ===================== -->
+  <section id="panel-hide" role="tabpanel" aria-labelledby="tab-hide">
+    <div class="card">
+      <h2><span class="step-no">1</span> Nosný obrázek</h2>
+      <p class="hint">Libovolné JPG/PNG. Čím více pixelů, tím více dat se vejde. Výstup bude vždy PNG.</p>
+      <label class="drop" id="dropCarrier">
+        <input type="file" id="carrierInput" accept="image/*">
+        <span class="drop-title">Klikněte nebo přetáhněte obrázek</span>
+        <span class="drop-sub">JPG, PNG, WEBP…</span>
+      </label>
+      <div class="preview-row" id="carrierPreview" hidden>
+        <img id="carrierImg" alt="Náhled nosného obrázku">
+        <div class="meta" id="carrierMeta"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-no">2</span> Soubory ke skrytí</h2>
+      <p class="hint">Jeden nebo více souborů. Více souborů se automaticky zabalí do jednoho ZIPu.</p>
+      <label class="drop" id="dropPayload">
+        <input type="file" id="payloadInput" multiple>
+        <span class="drop-title">Klikněte nebo přetáhněte soubory</span>
+        <span class="drop-sub">dokumenty, PDF, cokoli</span>
+      </label>
+      <ul class="filelist" id="payloadList"></ul>
+      <div class="capacity" id="capacityBox" hidden>
+        <div class="bar" id="capBar"><span></span></div>
+        <div class="cap-txt" id="capTxt"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-no">3</span> Vytvořit</h2>
+      <p class="hint">Vytvoří PNG se skrytými daty a nabídne ho ke stažení.</p>
+      <label class="optrow">
+        <input type="checkbox" id="encToggle">
+        <span>Zašifrovat heslem <span class="optnote">— AES‑256. Bez hesla pak obsah nikdo nevytáhne.</span></span>
+      </label>
+      <div class="pwrow" id="pwRow" hidden>
+        <input type="password" id="pwInput" placeholder="Zvolte heslo" autocomplete="new-password">
+        <div class="pwhint">Heslo si zapamatujte — bez něj data neobnovíte, nelze ho nijak resetovat.</div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="hideBtn" disabled>Skrýt do obrázku</button>
+        <a class="btn ghost" id="downloadLink" style="display:none;text-decoration:none">Stáhnout PNG</a>
+      </div>
+      <div class="msg" id="hideMsg"></div>
+      <div class="result" id="hideResult">
+        <img id="resultImg" alt="Výsledný obrázek se skrytými daty">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ODHALIT ===================== -->
+  <section id="panel-reveal" role="tabpanel" aria-labelledby="tab-reveal" hidden>
+    <div class="card">
+      <h2><span class="step-no">1</span> Obrázek s daty</h2>
+      <p class="hint">Vložte PNG vytvořené tímto nástrojem. Jiné obrázky neobsahují skrytá data.</p>
+      <label class="drop" id="dropReveal">
+        <input type="file" id="revealInput" accept="image/png,image/*">
+        <span class="drop-title">Klikněte nebo přetáhněte PNG</span>
+        <span class="drop-sub">PNG z Pixel Trezoru</span>
+      </label>
+      <div class="preview-row" id="revealPreview" hidden>
+        <img id="revealImg" alt="Náhled">
+        <div class="meta" id="revealMeta"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-no">2</span> Vytáhnout soubory</h2>
+      <div class="pwrow" id="revealPwRow" hidden>
+        <input type="password" id="revealPwInput" placeholder="Heslo k obrázku" autocomplete="off">
+      </div>
+      <div class="actions">
+        <button class="btn" id="revealBtn" disabled>Odhalit obsah</button>
+      </div>
+      <div class="msg" id="revealMsg"></div>
+      <div class="result" id="revealResult">
+        <ul class="filelist" id="revealList"></ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Metoda: data se ukládají do nejnižších bitů barevných složek pixelů (LSB). Hlavička <code>PXTZ</code> na začátku nese délku, příznak šifrování a kontrolní součet, takže nástroj při odhalování pozná, zda obrázek skutečně data obsahuje a zda jsou šifrovaná.
+    <br>Pozor: výstup musí zůstat PNG. Pokud obrázek znovu uložíte jako JPG nebo projde kompresí (např. nahráním na některé chatovací služby), skrytá data se zničí.
+  </footer>
+</div>
+
+<canvas id="work"></canvas>
+
+<script>
+/* ---------- Záložky ---------- */
+const tabHide = document.getElementById('tab-hide');
+const tabReveal = document.getElementById('tab-reveal');
+const panelHide = document.getElementById('panel-hide');
+const panelReveal = document.getElementById('panel-reveal');
+function selectTab(which) {
+  const hide = which === 'hide';
+  tabHide.setAttribute('aria-selected', hide);
+  tabReveal.setAttribute('aria-selected', !hide);
+  panelHide.hidden = !hide;
+  panelReveal.hidden = hide;
+}
+tabHide.addEventListener('click', () => selectTab('hide'));
+tabReveal.addEventListener('click', () => selectTab('reveal'));
+
+/* ---------- Pomocné ---------- */
+function fmtSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(2) + ' MB';
+}
+function showMsg(el, text, kind) {
+  el.textContent = text;
+  el.className = 'msg show ' + kind;
+}
+/* Drag & drop na drop zónu */
+function wireDrop(el, onFiles) {
+  el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('over'); });
+  el.addEventListener('dragleave', () => el.classList.remove('over'));
+  el.addEventListener('drop', (e) => {
+    e.preventDefault(); el.classList.remove('over');
+    if (e.dataTransfer.files && e.dataTransfer.files.length) onFiles(e.dataTransfer.files);
+  });
+}
+
+/* ---------- Minimální ZIP writer (STORE, bez komprese) ---------- */
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(buf) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+function buildZip(files) {
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+  const dosTime = 0, dosDate = 0x21;
+  for (const f of files) {
+    const nameBytes = enc.encode(f.name);
+    const crc = crc32(f.data);
+    const size = f.data.length;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true);
+    lh.setUint16(4, 20, true);
+    lh.setUint16(6, 0x0800, true);
+    lh.setUint16(8, 0, true);
+    lh.setUint16(10, dosTime, true);
+    lh.setUint16(12, dosDate, true);
+    lh.setUint32(14, crc, true);
+    lh.setUint32(18, size, true);
+    lh.setUint32(22, size, true);
+    lh.setUint16(26, nameBytes.length, true);
+    lh.setUint16(28, 0, true);
+    const lhU = new Uint8Array(lh.buffer);
+    chunks.push(lhU, nameBytes, f.data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true);
+    ch.setUint16(4, 20, true);
+    ch.setUint16(6, 20, true);
+    ch.setUint16(8, 0x0800, true);
+    ch.setUint16(10, 0, true);
+    ch.setUint16(12, dosTime, true);
+    ch.setUint16(14, dosDate, true);
+    ch.setUint32(16, crc, true);
+    ch.setUint32(20, size, true);
+    ch.setUint32(24, size, true);
+    ch.setUint16(28, nameBytes.length, true);
+    ch.setUint16(30, 0, true);
+    ch.setUint16(32, 0, true);
+    ch.setUint16(34, 0, true);
+    ch.setUint16(36, 0, true);
+    ch.setUint32(38, 0, true);
+    ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), nameBytes);
+    offset += lhU.length + nameBytes.length + f.data.length;
+  }
+  const centralStart = offset;
+  let centralSize = 0;
+  for (const c of central) centralSize += c.length;
+  const eocd = new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0, 0x06054b50, true);
+  eocd.setUint16(8, files.length, true);
+  eocd.setUint16(10, files.length, true);
+  eocd.setUint32(12, centralSize, true);
+  eocd.setUint32(16, centralStart, true);
+  eocd.setUint16(20, 0, true);
+  const all = [...chunks, ...central, new Uint8Array(eocd.buffer)];
+  let total = 0;
+  for (const c of all) total += c.length;
+  const out = new Uint8Array(total);
+  let p = 0;
+  for (const c of all) { out.set(c, p); p += c.length; }
+  return out;
+}
+
+/* ---------- Minimální ZIP reader (STORE) ---------- */
+function readZip(buf) {
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= 0; i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('Neplatný archiv.');
+  const count = dv.getUint16(eocd + 10, true);
+  let cdOff = dv.getUint32(eocd + 16, true);
+  const files = [];
+  for (let n = 0; n < count; n++) {
+    if (dv.getUint32(cdOff, true) !== 0x02014b50) break;
+    const method = dv.getUint16(cdOff + 10, true);
+    const compSize = dv.getUint32(cdOff + 20, true);
+    const nameLen = dv.getUint16(cdOff + 28, true);
+    const extraLen = dv.getUint16(cdOff + 30, true);
+    const commentLen = dv.getUint16(cdOff + 32, true);
+    const lhOff = dv.getUint32(cdOff + 42, true);
+    const name = dec.decode(buf.subarray(cdOff + 46, cdOff + 46 + nameLen));
+    const lhNameLen = dv.getUint16(lhOff + 26, true);
+    const lhExtraLen = dv.getUint16(lhOff + 28, true);
+    const dataStart = lhOff + 30 + lhNameLen + lhExtraLen;
+    if (method !== 0) throw new Error('Nepodporovaná komprese v archivu.');
+    const data = buf.subarray(dataStart, dataStart + compSize);
+    files.push({ name, data });
+    cdOff += 46 + nameLen + extraLen + commentLen;
+  }
+  return files;
+}
+
+/* ---------- Šifrování (AES-256-GCM, klíč z hesla PBKDF2) ---------- */
+async function deriveKey(password, salt) {
+  const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 150000, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+  );
+}
+async function encryptData(data, password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(password, salt);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data));
+  const out = new Uint8Array(28 + ct.length);
+  out.set(salt, 0); out.set(iv, 16); out.set(ct, 28);
+  return out;
+}
+async function decryptData(blob, password) {
+  const salt = blob.subarray(0, 16);
+  const iv = blob.subarray(16, 28);
+  const ct = blob.subarray(28);
+  const key = await deriveKey(password, salt);
+  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct));
+}
+
+/* ---------- LSB stego ---------- */
+const MAGIC = enc.encode('PXTZ');
+const FLAG_ENCRYPTED = 1;
+// Formát payloadu: [PXTZ(4)][flags(1)][len uint32 LE][crc32 uint32 LE][data...]
+const HEADER_LEN = 13;
+function buildPayload(data, flags) {
+  const header = new Uint8Array(HEADER_LEN);
+  header.set(MAGIC, 0);
+  header[4] = flags || 0;
+  const dv = new DataView(header.buffer);
+  dv.setUint32(5, data.length, true);
+  dv.setUint32(9, crc32(data), true);
+  const out = new Uint8Array(HEADER_LEN + data.length);
+  out.set(header, 0);
+  out.set(data, HEADER_LEN);
+  return out;
+}
+function capacityBytes(w, h) {
+  return Math.floor((w * h * 3) / 8);
+}
+function embed(imageData, payload) {
+  const px = imageData.data;
+  const bits = payload.length * 8;
+  let bit = 0;
+  for (let i = 0; i < px.length && bit < bits; i += 4) {
+    for (let c = 0; c < 3 && bit < bits; c++) {
+      const byteIdx = bit >> 3;
+      const bitIdx = 7 - (bit & 7);
+      const b = (payload[byteIdx] >> bitIdx) & 1;
+      px[i + c] = (px[i + c] & 0xFE) | b;
+      bit++;
+    }
+  }
+  return imageData;
+}
+function extract(imageData) {
+  const px = imageData.data;
+  function readBytes(startBit, nBytes) {
+    const out = new Uint8Array(nBytes);
+    let bit = startBit;
+    for (let k = 0; k < nBytes; k++) {
+      let val = 0;
+      for (let j = 0; j < 8; j++) {
+        const absBit = bit;
+        const pixelIdx = Math.floor(absBit / 3);
+        const chan = absBit % 3;
+        const b = px[pixelIdx * 4 + chan] & 1;
+        val = (val << 1) | b;
+        bit++;
+      }
+      out[k] = val;
+    }
+    return out;
+  }
+  const header = readBytes(0, HEADER_LEN);
+  for (let k = 0; k < 4; k++) if (header[k] !== MAGIC[k]) return null;
+  const flags = header[4];
+  const dv = new DataView(header.buffer);
+  const len = dv.getUint32(5, true);
+  const crc = dv.getUint32(9, true);
+  const maxBytes = capacityBytes(imageData.width, imageData.height) - HEADER_LEN;
+  if (len > maxBytes || len < 0) return null;
+  const data = readBytes(HEADER_LEN * 8, len);
+  const encrypted = (flags & FLAG_ENCRYPTED) !== 0;
+  if (crc32(data) !== crc) return { data, corrupt: true, encrypted };
+  return { data, corrupt: false, encrypted };
+}
+
+/* ====================================================
+   SKRÝT — stav a UI
+   ==================================================== */
+const canvas = document.getElementById('work');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+let carrierImageData = null;
+let carrierName = '';
+let payloadFiles = [];
+
+const carrierInput = document.getElementById('carrierInput');
+const carrierPreview = document.getElementById('carrierPreview');
+const carrierImg = document.getElementById('carrierImg');
+const carrierMeta = document.getElementById('carrierMeta');
+const payloadInput = document.getElementById('payloadInput');
+const payloadList = document.getElementById('payloadList');
+const capacityBox = document.getElementById('capacityBox');
+const capBar = document.getElementById('capBar');
+const capTxt = document.getElementById('capTxt');
+const encToggle = document.getElementById('encToggle');
+const pwRow = document.getElementById('pwRow');
+const pwInput = document.getElementById('pwInput');
+const hideBtn = document.getElementById('hideBtn');
+const hideMsg = document.getElementById('hideMsg');
+const hideResult = document.getElementById('hideResult');
+const resultImg = document.getElementById('resultImg');
+const downloadLink = document.getElementById('downloadLink');
+
+function readFileAsBytes(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(new Uint8Array(r.result));
+    r.onerror = rej;
+    r.readAsArrayBuffer(file);
+  });
+}
+
+encToggle.addEventListener('change', () => {
+  pwRow.hidden = !encToggle.checked;
+  updateCapacity();
+});
+
+function loadCarrier(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  carrierName = file.name.replace(/\.[^.]+$/, '');
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    ctx.drawImage(img, 0, 0);
+    carrierImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    carrierImg.src = url;
+    carrierMeta.innerHTML = `<b>${file.name}</b><br>${img.naturalWidth} × ${img.naturalHeight} px<br>Kapacita: <b>${fmtSize(capacityBytes(img.naturalWidth, img.naturalHeight) - HEADER_LEN)}</b>`;
+    carrierPreview.hidden = false;
+    updateCapacity();
+  };
+  img.src = url;
+}
+carrierInput.addEventListener('change', (e) => loadCarrier(e.target.files[0]));
+wireDrop(document.getElementById('dropCarrier'), (files) => loadCarrier(files[0]));
+
+async function addPayloadFiles(fileList) {
+  for (const file of fileList) {
+    const data = await readFileAsBytes(file);
+    payloadFiles.push({ name: file.name, data });
+  }
+  renderPayload();
+}
+payloadInput.addEventListener('change', async (e) => {
+  await addPayloadFiles(e.target.files);
+  payloadInput.value = '';
+});
+wireDrop(document.getElementById('dropPayload'), (files) => addPayloadFiles(files));
+
+function renderPayload() {
+  payloadList.innerHTML = '';
+  payloadFiles.forEach((f, idx) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="nm">${f.name}</span><span class="sz">${fmtSize(f.data.length)}</span>`;
+    const rm = document.createElement('button');
+    rm.textContent = '×';
+    rm.title = 'Odebrat';
+    rm.addEventListener('click', () => { payloadFiles.splice(idx, 1); renderPayload(); });
+    li.appendChild(rm);
+    payloadList.appendChild(li);
+  });
+  updateCapacity();
+}
+
+function currentPayloadBytes() {
+  if (payloadFiles.length === 0) return 0;
+  let total;
+  if (payloadFiles.length === 1) {
+    total = payloadFiles[0].data.length + HEADER_LEN;
+  } else {
+    total = 22 + HEADER_LEN;
+    for (const f of payloadFiles) total += 30 + 46 + enc.encode(f.name).length * 2 + f.data.length;
+  }
+  if (encToggle.checked) total += 44;
+  return total;
+}
+
+function updateCapacity() {
+  if (!carrierImageData || payloadFiles.length === 0) {
+    capacityBox.hidden = true;
+    hideBtn.disabled = true;
+    return;
+  }
+  capacityBox.hidden = false;
+  const cap = capacityBytes(carrierImageData.width, carrierImageData.height) - HEADER_LEN;
+  const need = currentPayloadBytes();
+  const pct = Math.min(100, (need / cap) * 100);
+  capBar.querySelector('span').style.width = pct + '%';
+  const over = need > cap;
+  capBar.classList.toggle('over', over);
+  capTxt.textContent = over
+    ? `Data (${fmtSize(need)}) se do obrázku nevejdou — kapacita je ${fmtSize(cap)}. Zvolte větší obrázek nebo méně souborů.`
+    : `Využití: ${fmtSize(need)} z ${fmtSize(cap)} (${pct.toFixed(0)} %)`;
+  hideBtn.disabled = over;
+}
+
+hideBtn.addEventListener('click', async () => {
+  hideMsg.className = 'msg';
+  hideResult.className = 'result';
+  downloadLink.style.display = 'none';
+  const useEnc = encToggle.checked;
+  if (useEnc && pwInput.value.length < 4) {
+    showMsg(hideMsg, 'Zadejte heslo (alespoň 4 znaky), nebo šifrování vypněte.', 'err');
+    pwInput.focus();
+    return;
+  }
+  hideBtn.disabled = true;
+  try {
+    let data, isZip = false;
+    if (payloadFiles.length === 1) {
+      data = payloadFiles[0].data;
+    } else {
+      data = buildZip(payloadFiles);
+      isZip = true;
+    }
+    let flags = 0;
+    if (useEnc) {
+      data = await encryptData(data, pwInput.value);
+      flags |= FLAG_ENCRYPTED;
+    }
+    const payload = buildPayload(data, flags);
+    const cap = capacityBytes(carrierImageData.width, carrierImageData.height);
+    if (payload.length > cap) {
+      showMsg(hideMsg, 'Data se nevešla. Zvolte větší obrázek.', 'err');
+      hideBtn.disabled = false;
+      return;
+    }
+    const copy = new ImageData(
+      new Uint8ClampedArray(carrierImageData.data),
+      carrierImageData.width, carrierImageData.height
+    );
+    embed(copy, payload);
+    ctx.putImageData(copy, 0, 0);
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      resultImg.src = url;
+      hideResult.className = 'result show';
+      downloadLink.href = url;
+      downloadLink.download = (carrierName || 'obrazek') + '_trezor.png';
+      downloadLink.style.display = 'inline-block';
+      const label = isZip
+        ? `${payloadFiles.length} souborů zabaleno do ZIP a skryto`
+        : `Soubor „${payloadFiles[0].name}" skryt`;
+      const encNote = useEnc ? ' a zašifrováno heslem' : '';
+      showMsg(hideMsg, `${label}${encNote}. Výsledný PNG má ${fmtSize(blob.size)}. Stáhněte ho tlačítkem vpravo.`, 'ok');
+      hideBtn.disabled = false;
+    }, 'image/png');
+  } catch (err) {
+    showMsg(hideMsg, 'Chyba při skrývání: ' + err.message, 'err');
+    hideBtn.disabled = false;
+  }
+});
+
+/* ====================================================
+   ODHALIT
+   ==================================================== */
+const revealInput = document.getElementById('revealInput');
+const revealPreview = document.getElementById('revealPreview');
+const revealImg = document.getElementById('revealImg');
+const revealMeta = document.getElementById('revealMeta');
+const revealBtn = document.getElementById('revealBtn');
+const revealMsg = document.getElementById('revealMsg');
+const revealResult = document.getElementById('revealResult');
+const revealList = document.getElementById('revealList');
+const revealPwRow = document.getElementById('revealPwRow');
+const revealPwInput = document.getElementById('revealPwInput');
+
+let revealImageData = null;
+
+function loadReveal(file) {
+  if (!file) return;
+  revealMsg.className = 'msg';
+  revealResult.className = 'result';
+  revealPwRow.hidden = true;
+  revealPwInput.value = '';
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const cc = c.getContext('2d', { willReadFrequently: true });
+    cc.drawImage(img, 0, 0);
+    revealImageData = cc.getImageData(0, 0, c.width, c.height);
+    revealImg.src = url;
+    revealMeta.innerHTML = `<b>${file.name}</b><br>${img.naturalWidth} × ${img.naturalHeight} px`;
+    revealPreview.hidden = false;
+    revealBtn.disabled = false;
+    if (/\.jpe?g$/i.test(file.name)) {
+      showMsg(revealMsg, 'Upozornění: soubor je JPG. Skrytá data v JPG téměř jistě nepřežila kompresi.', 'warn');
+    }
+  };
+  img.src = url;
+}
+revealInput.addEventListener('change', (e) => loadReveal(e.target.files[0]));
+wireDrop(document.getElementById('dropReveal'), (files) => loadReveal(files[0]));
+
+function triggerDownload(name, bytes) {
+  const blob = new Blob([bytes]);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+revealBtn.addEventListener('click', async () => {
+  revealResult.className = 'result';
+  revealList.innerHTML = '';
+  try {
+    const res = extract(revealImageData);
+    if (!res) {
+      showMsg(revealMsg, 'V tomto obrázku nebyla nalezena žádná skrytá data (chybí značka PXTZ). Jde buď o běžný obrázek, nebo byl uložen ve formátu, který data zničil (např. JPG).', 'err');
+      return;
+    }
+    if (res.corrupt) {
+      showMsg(revealMsg, 'Data byla nalezena, ale kontrolní součet nesouhlasí — obrázek je pravděpodobně poškozený nebo byl překomprimován. Pokusím se je přesto zpracovat.', 'warn');
+    }
+
+    let payloadData = res.data;
+    if (res.encrypted) {
+      revealPwRow.hidden = false;
+      const pw = revealPwInput.value;
+      if (!pw) {
+        showMsg(revealMsg, 'Obrázek je zašifrovaný. Zadejte heslo a klikněte znovu na „Odhalit obsah".', 'warn');
+        revealPwInput.focus();
+        return;
+      }
+      revealBtn.disabled = true;
+      try {
+        payloadData = await decryptData(res.data, pw);
+      } catch (e) {
+        showMsg(revealMsg, 'Nesprávné heslo, nebo jsou data poškozená. Zkontrolujte heslo a zkuste to znovu.', 'err');
+        revealBtn.disabled = false;
+        return;
+      }
+      revealBtn.disabled = false;
+    }
+
+    let files;
+    const isZip = payloadData.length > 4 &&
+      payloadData[0] === 0x50 && payloadData[1] === 0x4B &&
+      payloadData[2] === 0x03 && payloadData[3] === 0x04;
+    if (isZip) {
+      try { files = readZip(payloadData); }
+      catch (e) { files = [{ name: 'obsah.zip', data: payloadData }]; }
+    } else {
+      files = [{ name: 'odhaleny_soubor', data: payloadData }];
+    }
+    files.forEach((f) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="nm">${f.name}</span><span class="sz">${fmtSize(f.data.length)}</span>`;
+      const dl = document.createElement('button');
+      dl.textContent = '↓';
+      dl.title = 'Stáhnout';
+      dl.style.fontSize = '1rem';
+      dl.addEventListener('click', () => triggerDownload(f.name, f.data));
+      li.appendChild(dl);
+      revealList.appendChild(li);
+    });
+    revealResult.className = 'result show';
+    if (!res.corrupt) {
+      const decNote = res.encrypted ? ' a dešifrováno' : '';
+      showMsg(revealMsg, `Nalezeno, vytaženo${decNote}: ${files.length} ${files.length === 1 ? 'soubor' : 'souborů'}. Stáhněte je šipkou vpravo u každé položky.`, 'ok');
+    }
+  } catch (err) {
+    showMsg(revealMsg, 'Chyba při odhalování: ' + err.message, 'err');
+  }
+});
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>

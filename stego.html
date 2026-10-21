@@ -1,0 +1,845 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#0b0b0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pixel Trezor">
+<link rel="apple-touch-icon" href="data:image/png;base64,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">
+<link rel="icon" href="data:image/png;base64,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">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Pixel%20Trezor%22%2C%22short_name%22%3A%22Trezor%22%2C%22start_url%22%3A%22.%2Fstego.html%22%2C%22scope%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22orientation%22%3A%22portrait%22%2C%22background_color%22%3A%22%230b0b0c%22%2C%22theme_color%22%3A%22%230b0b0c%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAACXBIWXMAAAsTAAALEwEAmpwYAAAWdklEQVR4nO2de3RU1b3HT713XTL7t89MJsk8MnlM3oT4Fl8VjBLCI5AAAUFAotgI6LV6rbbV1XVve5e2VFtUKD54I1QFCypvhYBYFLCKoCCgVUBq6z%2B9be1%2F9Q%2Fdd%2F3O5ITh5JyZOZNJ9pk5v7PWdy0W88je39%2Fn7Nn7tx9HUSReABBkjI0BgHsZg6cZ47sZ40cB4BRj8HcA%2FjUAFyRHefB1LDYYI36UMd6FsQOAexhjoznnAcVFF%2FN4%2BETG%2BKIYuPxbBwSIBBn14FvG%2BIeM8YUejzpBURSPkmPXBZzz4QCwlDH4JwHkrhuIxWK%2B1uNR2xRF%2BTcli688zvl%2FAsBp2aaSuEM8gFOc87sURRmkZNHFGGM%2FBOBfyjeQBM704EsAuB9ZUZx84c8KAJyxW8ECv1%2BEgkWiNBISFWURUVtZKuqqykV9TVQMqY2KhroKkgM8GFIb1WKCscEYYawwZqFgoRbDNMD%2BgnN%2Bk%2BK0a9AgXwUAbE21Ij6vT4RDAVFRHiFgcwz4ivKIFluv12unK7I5Ly%2BvXHHC5fHwSd0ptoSF5lwVwUCRqIpGehlRV1UmoqVhEQkHRKCoUPjz80W%2BzytUVdU%2B54CfSBLEYogxwdhgjDBWGDOMHcbQGFeMNcY8lRjGBo8wTSbLgzD9lgrIxaGAGFxTfv6dXFasVRZbawImN24Yn9enxRRjG99VHFxdLopDwRQbJ1g64INGVVULAeBgcpCDWp9Lr1h1RYkIB4uESq1uzkvlqhbrmorSnvgjC9i4cZ74s4zB216vt2BAYPZ4PJHuSRHLAuEAAQcN50AuFYHCAukmk7gUD5CH%2BK4mdk8KCxLzwBicyMvLK%2BtXmDnn9QD8T4la5bKS8HkFL0pScJJ7PCgqLBB11ef62mUloWTdkLOqqg7uF5g9Hk8JAP%2Fc6o%2F7fD5R090qY%2F8pEk61z0Rykwecq6KkONjTx8YuiS9xRuTPeXl50Yz3mfEnwOqP4s%2BHXkBslXEELNs4Ene0B35%2FvqirjiUKkJ3CAus8NmNwPJN96kGJBoCYutFhxtEttcryYYEsEbKCeWsdamQpAdT7M5L9YIw%2FZfVHcBSr94dKI0HpBpF4VnpQFgn1cIRMWUPNF%2FUJZpyWtPpyvJv0QmAqRrYppOz2ACdodJ4StdSc88lpT2czBl%2BZfSn2d%2FRuBsEsH4Zcg3pIbdQyO8YY%2FCOtQSIAbLGaDdJhpm6GfAhytfsxpDaaIPsBm2yvz7DqxOupORwAyq48KTc9qOgeKGJKzyrJ0L1hIKWLWeWb9UkTTM1RNkN%2B4HNVnKs9KT2cfDF%2FH5xOaXsXY%2BqPrKYv9Z8CyjPLD3quy5%2Bf39O1tV5rDfcl43kQAP9L7zuG93Q1cAZQdmVJ7vCgpDioMYfrgix6BF%2FiVj9LmmN7AHt%2FMa6ao66G%2FAC7s%2BtRljCb5vHweVY8X2C2oRW%2FVF8CSguN5AfZjQuaGrSlp%2BWmrTRj8JmiKN%2FpRTMAjDD7wuLu3CCuZZZdOZI7PaiuKEnYSnPOG82AXtX7jaq22wC%2FLNn6VRJ5AP3cSiOL5n1pWG7k2WM2K4jbaah1JlDBAR7oSYlgoNB0P%2BJ5KTw8nsvsS%2FRdBokWjJDIAxgAD%2FSFcJXlEdPXGVPHx%2BWee292xW3oet6Z9gAStCDZA9xtruelzY5IYIwviAe61x5BPFuBprgJZHDglHg4aDo4PKIPBoNmp4DqH8Z%2BtOyKkMgDAC5CgdiSZTyxyYSJbzjnRXgQ3RgzYOoTNO8k8gAkeIArPbWcdG3U4j3QjC30vVbrNnAREsFL8IKDPNAXLeGeRBOg71Zip6%2Bf%2FwIevocfwiOeZFeARB5AnAfR0mKNTex%2BGNlgjP8GB4Rdxhdw4X5sIRJtraIbijtywVJJsemy0p0I9DGrASGddiQ%2FgCRuupfVbGCIj8JQzBbz68d40brn1IGqrQyJaeMuFj%2B5c7hY9sg4sWvVzeLg%2Bg5xfFunOLN7nib8N%2F4fvobvwffiZ2oqrBaxk8DgATKp7WapLDXxB05jH%2Fpvxhf0JXt4GhKZag6VV1XFqOG14vGHmsWB9R3iizfv6pP2r5slFjzYLEYNq9UmEch3buqBzxeb8MND13u30PBXxezRafpyUTLWvCX%2B2fcbxaGXb%2BszxFZ6b%2BOt4qd3N1LLDb39V1Vvz3JSk9f%2FhUD3ekGfYqR9g%2FE3eVjMv3%2BEONU1t99ANgq7KU%2F9dIy4qM58%2FYIbxbnasyTD7HVToPUDP2QX3gkKFOaLB%2BcME6e75g0YyL3A3jNPu5mCgbSeYyJyTYn4JKATGDdpVIN4vx%2B7FnaF3ZyJzUOkAwUEdHbJn%2B%2FTWkTZAFsJuyGFBe494bWBWujUzaqtDIudK6eJP%2B2909F6fcU01w4aGwjo1Iy6pL5EvPPSLHH2jXlZoUMbbxVXXOi%2B9TYNBHRyk64bGhUfbp4tPt8zN6uEZb72cqvVZzwnRUAnMejSISXig023iTO752Sljm2ZLS6%2F0GzmLDdFQCcwpyoaFPtfnCFOd92R1Tq4fqY26SMbNgJaojEFfp%2FYvnSyOLWrMyM6sW22WP9Em7j%2F9mtEW9NgcXF9RBQHC7Qnr6Lw3%2Fh%2F%2BNoD37tGe%2B%2FJ7bMz9ve3LZmsZWhkA0cttCRj5t9%2Fg%2Fhs5%2Ff6rC3PTBK3TrpEhNKY%2BAgH%2FeK29kvE1mfbM1KWn993vXTgCGgJpmAr%2Benrt%2FdJW5%2BdJEYNq8lYmUYPrxHbl7T3uVytI%2BqkQ9efoj60wZBgUb448MLN4tPXZqelY5s7xB1TL9NW3GU6WLiHc97NV4iPNnekXb63n58migpzd%2BKFgDYY8rO7rxN%2F3HFbWupaMVnLivR30DBrsXvVlLTL%2Bd93flc6eAT0AJhRXx0WJ7Z0iE%2B232pbGxe2iUho4M74KwkXiJcXtaVV1uObZ4nBVbmZ9aAWOs6Mxx5oFB9v67CtDU%2B2iqKCgc8g4N%2FcuLA1rTLP%2F0FuDhAJ6G4jqqNBcfTVmeLk1lm29PqySQPaMpu11LuWt9su99FXZ4qq8tzb6ExAdxvx0JxrxIktt9jS4Y3TxaX18hfYX9ZQIo5snG67%2FD%2FuvFp62QnofjABMxJ7V7eL45tn2lLnlEukB1DXnKmX2i7%2FG6vac%2B6wTWqhgYumayvFR5tm2NLmxeOF1%2BscGLAsrywaZ7seN1ydW7uPCGjg4pF7rhMfvTrdlkZ%2Bt0p68IwaPazadj0e%2Fn5upfAIaODitWfbxLFXbk5ZGx4fKz1wZsJH7G18cqytuux4plV6uQnoDJqAI%2F2jL0%2BzpZmtzt271zGhwXZ9Ksty51hk17fQ7c114sONU1PWu%2Bsma9PjsgNnpXDALw6tn2KrThObaqWXm4DOkAn3dVwhPtgwNWWtfLhJetCS6bmfj7RVp3tuuVx6mQnoDJnw%2BI%2BGiyO%2Fuyll3T3jUulBS6Z7brnMVp0WPDBMepkJ6AyZsP7Xo8Thl6akrLHDnZfdMKqlscpWndY91iy9zAR0hkzY%2FnSLeH%2F95JTVUOP8RT0X1YZt1Wnr4hbpZSagM2TC3hWt4tC69pSFu0hkBy2ZIiG%2FrTrtWZ47qTvXZzkOrp0gDr04KWXh%2Fj%2FZQUsmf77XVp0OrJkgvcwEdIZMeO%2BFibYkO2Burxckketb6Hefn2BLsgPm9noBAZ3YhD%2F8ts2WZAfM7fUCAjqxCe%2BsbbUl2QFze72AgE5swsE1421JdsDcXi8goBObcOC5cbYkO2BurxcQ0IlN2L%2B6xZZkB8zt9QICOkngV421pawBOkfrBQR0YhPeXjnGlmQHzO31AgI6sQlvrRhtS7ID5vZ6AQGd2IR9y0fZkuyAub1eQEAnNuH3y5ptSXbA3F4vIKATm%2FDm0pG2JDtgbq8XENCJTdi7pMmWZAfM7fUCAjqxCW%2BtGCUOr5%2BsncqJj244u1feY44HSmf3ztPqinU%2BvL5d7KNBYfaftlNVHhQLHhwpzjrgQZmydXbvnWL5Iy2iLgeO2HXl8tGJzfXi5I5O6Q%2FHdJpObu8UbU310uNDQNsw4c4ZV4oze%2BZKh8epOrNnrpg3fah0MNOVq1roCSPrxendc6Q%2F4dXpOr17jvbgJNnxIqCTHGh%2BYtvt4nMEmiSSeXBi6%2B2isiz7DkR3TQv9xEPN4kzXHJINDxb8OPvSea4AuqYiJD7d2Sn9EcXZpk93dmqPh5YdPwLaYMLcaVeI07s6Sbvse9B5U3ade%2BeKFnrto%2BPEqZ2dpJ32PXhufnYt%2FncF0HvXTMvIs7LdqN2rp0qPHwFtMOHYpg7x2eu3k1637wF6JxtSAtpgQrrPxSbN1jyQDSkBbTDhj6%2FNJr2WvgeyISWgjUCn%2BZB30m2aB7IhJaANJqTzgPf%2B1JpfjhWzJlwkGmrDoqjQp%2BnC2mLRMfEisfbRsdLL94lBsiEloI1Ab7vVEepaPllcf2XyDFHjlRVi94rJ0sv7SbdkQ0pAG0z4eFuHdL346xZbh6Xje9ctGCe93B9voyyH43Ry6yyp2rlsUlon%2FxeH%2FKJrRbv08oMDYpiqXDGxcnLLLKm64ar0%2FRo%2BNCq9%2FOCAGBLQcSac2HKLNK3%2BRd%2FPvFgzf7TUOoADQCWg40w4vnmmNM1sbehzkGZNuFBqHcABoBLQ8UBvmilNDTXhvgepNiy1DuAAUAnoOBM%2B2jRDmooKfH0OEn6HzDqAA0AloONMOPbqdGnKBNDBonypdQAHgEpAxwP9ynRpGpKBJ89eWBuWWgdwAKgEdJwJR1%2B%2BWZpmjB%2FS5yDNamuQWgdwAKgE9HlAT5OmlQ%2F3faPp6kdGSq0DOABUAjrOhA83TpOqxquiaQdo%2BBXl0ssPDgCVgI4z4YMNU6VqxzOtIhIqsB2c4qBfbH96vPTygwNAJaDPA%2Fom6Vrzi5EaoHZgxs%2FILvcHG26SDikBbTDhyO%2BmOEJbF7eI4UPLkwbo%2BqHlYttTLdLLe6RbsiEloA0mHH5piqOULEDZVl5wkFyx2u7wS5MdpVwrLzhIrgD6%2FfXtjlKulRccJHcAva7dUcq18oKD5AqgD704yVHKtfKCg%2BQKoN97caKjlGvlBQfJHUC%2FMNFRyrXygoPkCqDffX6Co5Rr5QUHyRVA%2F%2BH5Nkcp18oLDpI7gP5tm6OUa%2BUFB8kVQL%2BzttVRSrSLJVjkk16%2BdwySHT8C2mDCwbXjHaXRw6wbhHGNldLLd9Ag2ZAS0Eag14x3lDb8qkmEAvmmK%2By2LGyWXr6DBsmGlIA2mHDguXGO06YnR4qW4ZUiUOjTNO76SrH5yZHSy3XARLIhJaCNQK9uIa1O3wPZkBLQBhP2r24hrU7fA9mQEtAGE3YvGS3eXjWWtMq%2BB7ue6fvZfAR0hk146dFG8fbKMaSV9j1YN79ROqTUQhtMePKHV4m3Vo4mrbTvweP3XyUdUgLaYML0sbVi34rRpBX2PZg2ukY6pAS0wYSK0kLx5tJmsW%2F5KNLy1D3Yu7RZREsKpUNKQJuY8JPOS8XvlzeTlqfuwYOzL5EOKAFtYUJ5pEC8trhJvLmsmbQsuQc7Fo8QZcX2D8fJusVJQ2qj2gc4V6UX3q5uuLJUvPFsk3hz6UjSUmsP3ljSJJquLpUeL7tCJpFNZNQK6K%2BN%2F1lfEwNaVbMPaNT0sdXijWdHiL1LmkhLenuA3kwfUy09TulIVb0am%2FU1pof5%2FEthDP5mfKGuqkz7kM%2FX94O8ZQlbnx2LbiSgl5wP845FN4gRV2Vfy6zL54sBXVfVG2jG4K%2FYQn9ufKG2slT7kD%2B%2F92qxbFIkmC9%2BcEuD6Hr6Rq1VcrP2PHOj%2BJ87LhZlxfafpegkIZPIZk2l2U0JpxXG%2BDHjCxXlEe1DgcLsGzCYKRopEFNHVYlf3Xu5WPO%2F14rtCxu1AOeyti9s1Or62D2XianNVZoHsuOQCQWKCjU2K8oivV5jjH%2BIQHcZXyiNBLUPRcIB6RUgkQcQ50FJcYzNkmLTx4DsxD7008YXQsHYXRAt7fvjykjkAWTQg2hpscZmKNB7Mogx%2FhsFAO41vlDg93d3vMsISAJSOMmDuury2PjObza%2Bg7sVxtgYsw%2FWd%2Beifd7szXSQeE55gCxqKTuLHDQANCuc8wAA%2F9ZqYBgMFEmvCIk8gLiusNmAEIB%2Fo6pqoYIXY%2Fyo8Q3hUKD7w8UEFAElnOCB3siGg6bJisMazN1ALzS%2Bwev19kwxqlk4BU7iOeUBzlrrSzKQTePrjPEFPUB7POoEsy%2Bpiup3BHU7ZAfU7QoFizQWK8tNuxuCMTauB2hkmjH4yvgm7D9rszIV2TtVSuI54QHODMbGdGbpOvgKGY4HGtN3K81WNg3uTpMU5cisIYlnnQfIHjKILJqvAIVl58HcDfSNZl9WHI4NDquplZYeWLequqJEY7A4ZD5zzTm%2FvhfQiqJcAACner9Z7VlOSq20%2FOC6TUWF%2Fp7loqra%2B3XG4FNFUb5jBjTmpO8y%2B1K8M7SZw%2BqyrFz0T%2BJZ6QGyps8MYhrZ7D2M8blKgmsQAP9L7y8%2B1ynHxSGyK0pyhweRcGwhEi5ntmhIv0BmEwGNfekHzL5cX9%2BBuUDzeXQSecAz5gHypued8d%2Fm74N7lRQuBgBnzL6grCTU3fWwGm2SyAPeZw9wIg93pCBrZRHTZaLYd%2F5MUZS8VIDGBUstZl%2BCEGNOWpsSt0hwk8gD6KMHuFZDz6xZNZyMqeNTgjmu67HZ7It8Xm%2FPT4HV3UMiDyBND%2FReAGbWcP%2BgRVfjFcXulZeXV84Y%2FMPsCwsLzvVvaFcLwQsZ8gBZ0sdphQXmE3mMwd%2Fz8vLKlHQuxtRWs6Wl8Xu7CGoCGjIIc5K9rN96PLw9LZjPQc0XWRUCFy3phaDuB4ENfexmaFurEiyEY4w%2FoWTgGsQY7Lf6I9hS690PHChS9oPABhvZDH0AiAwlOmWAMdinKMp%2FZAJoxe%2F3%2BwD4B1Z%2FLL5PjSk9ylMT1JDEA8wt66k5HABa55q1lvkjr9dboGTy8ng8JWaH0sRnP%2FSUHsKNM4rUWhPYYPAAmcAZQL0BxNScdTZD0xeYoFD641JVdTAAP5uosPH9IVz7QQuaCGrQu6eFBaK2u1XWx11JGr2zqqrWKf15McaK8YSaZD8n%2BtoP%2FS7MlVOYSNy2B8hDVTS2BFQ%2FxqsgyfIJxuB42uk5uxf2ZxINFGOtdWyVHi77i68IZkay9VRTEk%2FZA4wxxjq%2BYUMWcNUcspEE5n0%2Bn8%2BvDPD17wDwqFWe%2BhzYqga2vvNF72NjRiQUKKJzP3LoRvH5fNqJRpi50PvI%2Bk4TZMBsPbNB32KaOGPZjHQuj4dPxNmbZJVFsHE%2FGG5y1Csa39fGI55wsIBpQDxhMt%2Fn1e5yGljKBxXiYogxwdhgjDBWGLNoWXHPuuV4Yawx5qnEkDH4J%2Bd8quKEKy8vL2q19sNMuA0dz1bAO1k%2FoYmU%2FR7U10S1mGJszY4asBa8MmD9ZftT5XDa7p2PdzueioMnSqIh2O%2FC0TAaFP%2FTRZLrwZDaqBYTjA3GCGOFMcPYpXeWOJyyvWpOwuUBgPsA%2BJ9l%2F0SSuFM9%2BAIA%2Fivl9cwOuQZ5PHweLsR2gIEkkO8Bbmjt3gMob9CXiYsxNhRHr4zB%2F8k2lcQHGmI8wGitdjKo1e7sLL7ysM%2BEq6YA%2BBE8MZIAy7mb7Bs8OJEx%2Fnj38VxZ1a3o08U5LwKAUXhQNWN8MWN8V2wRFA4WtKdz9XrkHEm6B1%2FHYqOd4YIL1nZi7DCG2Ar3HGkr6fp%2FIYPaHg4SGKwAAAAASUVORK5CYII%3D%22%2C%22sizes%22%3A%22180x180%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">
+<title>Pixel Trezor</title>
+<style>
+  /* Layout: jednosloupcový nástroj, dvě záložky (Skrýt / Odhalit); černo-zlaté "trezor" téma, committed dark */
+  :root {
+    --bg: #0b0b0c;
+    --surface: #151414;
+    --surface-2: #201e1b;
+    --line: #322e28;
+    --fg: #f2ede2;
+    --fg-soft: #a69c88;
+    --gold: #d8b25c;
+    --gold-deep: #bd9640;
+    --gold-soft: rgba(216,178,92,.13);
+    --danger: #e3826a;
+    --warn-fg: #e0b45c;
+    --ok-fg: #d8b25c;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    color-scheme: dark;
+    --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
+    --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 30px 56px;
+  }
+
+  header { margin-bottom: 22px; }
+  .eyebrow {
+    font-family: var(--font-display);
+    font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+    font-size: .68rem; color: var(--gold);
+    display: inline-flex; align-items: center; gap: 9px;
+  }
+  .eyebrow::before {
+    content: ""; width: 20px; height: 20px; flex: none;
+    border-radius: 5px; background: var(--gold-soft);
+    border: 1px solid var(--gold);
+    background-image: linear-gradient(var(--gold),var(--gold));
+    background-size: 8px 7px; background-position: center 11px; background-repeat: no-repeat;
+    box-shadow: inset 0 0 0 2.5px var(--bg), inset 0 3px 0 2.5px var(--bg);
+    position: relative;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700; font-size: clamp(1.9rem, 6vw, 2.5rem);
+    margin: 10px 0 4px; letter-spacing: -.01em; text-wrap: balance;
+    color: var(--fg);
+  }
+  .rule {
+    height: 3px; width: 72px; margin: 10px 0 14px;
+    background: repeating-linear-gradient(90deg, var(--gold) 0 2px, transparent 2px 7px);
+    opacity: .9;
+  }
+  .sub { color: var(--fg-soft); max-width: 60ch; font-size: .95rem; }
+
+  .tabs {
+    display: flex; gap: 4px; margin: 24px 0 18px;
+    background: var(--surface); padding: 4px; border-radius: 12px;
+    width: fit-content; border: 1px solid var(--line);
+  }
+  .tab {
+    font: inherit; font-family: var(--font-display); font-weight: 600; font-size: .9rem;
+    border: 0; background: transparent; color: var(--fg-soft);
+    padding: 9px 22px; border-radius: 9px; cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .tab[aria-selected="true"] {
+    background: var(--gold); color: #141007;
+  }
+  .tab:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-family: var(--font-display);
+    font-size: 1.02rem; font-weight: 600; margin: 0 0 3px;
+    display: flex; align-items: center; gap: 9px;
+  }
+  .step-no {
+    font-size: .72rem; font-weight: 700; color: var(--gold);
+    background: var(--gold-soft); border: 1px solid var(--line);
+    border-radius: 6px; padding: 2px 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card .hint { color: var(--fg-soft); font-size: .85rem; margin: 2px 0 14px; }
+
+  /* Drop zóna — flex sloupec, nic nepřetéká */
+  .drop {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; text-align: center; width: 100%;
+    border: 1.5px dashed var(--line); border-radius: 12px;
+    padding: 26px 16px; cursor: pointer; background: var(--surface-2);
+    color: var(--fg-soft); transition: border-color .15s, background .15s;
+  }
+  .drop:hover, .drop.over { border-color: var(--gold); background: var(--gold-soft); }
+  .drop input { display: none; }
+  .drop-title { color: var(--fg); font-weight: 600; font-size: .95rem; }
+  .drop-sub { font-size: .82rem; }
+
+  .filelist { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .filelist li {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 9px; padding: 8px 10px; font-size: .85rem; min-width: 0;
+  }
+  .filelist .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .filelist .sz { color: var(--fg-soft); font-variant-numeric: tabular-nums; font-size: .78rem; white-space: nowrap; }
+  .filelist button {
+    border: 0; background: transparent; color: var(--fg-soft); cursor: pointer;
+    font-size: 1.1rem; line-height: 1; padding: 0 4px;
+  }
+  .filelist button:hover { color: var(--gold); }
+
+  .preview-row { display: flex; gap: 14px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+  .preview-row img {
+    width: 92px; height: 92px; object-fit: cover; border-radius: 10px;
+    border: 1px solid var(--gold-deep); max-width: 100%;
+  }
+  .meta { font-size: .82rem; color: var(--fg-soft); min-width: 0; }
+  .meta b { color: var(--fg); font-weight: 600; }
+
+  .capacity { margin-top: 16px; }
+  .bar { height: 8px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--gold); width: 0; transition: width .25s; }
+  .bar.over > span { background: var(--danger); }
+  .cap-txt { font-size: .8rem; color: var(--fg-soft); margin-top: 7px; font-variant-numeric: tabular-nums; }
+
+  .optrow {
+    display: flex; align-items: flex-start; gap: 9px; cursor: pointer;
+    font-size: .9rem; margin: 2px 0 10px; user-select: none;
+  }
+  .optrow input { margin-top: 3px; accent-color: var(--gold); width: 16px; height: 16px; flex: none; }
+  .optnote { color: var(--fg-soft); font-size: .82rem; }
+  .pwrow { margin: 0 0 14px; display: flex; flex-direction: column; gap: 6px; }
+  .pwrow input[type="password"] {
+    font: inherit; font-size: .92rem; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 9px;
+    background: var(--surface-2); color: var(--fg); width: 100%;
+  }
+  .pwrow input[type="password"]:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; border-color: var(--gold); }
+  .pwhint { font-size: .78rem; color: var(--warn-fg); }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
+  .btn {
+    font: inherit; font-family: var(--font-display); font-weight: 600; font-size: .92rem;
+    border: 0; border-radius: 10px; padding: 12px 24px; cursor: pointer;
+    background: var(--gold); color: #141007; transition: background .15s, opacity .15s;
+  }
+  .btn:hover:not(:disabled) { background: var(--gold-deep); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.ghost { background: var(--surface-2); color: var(--fg); border: 1px solid var(--line); }
+  .btn.ghost:hover:not(:disabled) { background: var(--line); }
+  .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  .msg { border-radius: 10px; padding: 12px 14px; font-size: .86rem; margin-top: 14px; display: none; border: 1px solid transparent; }
+  .msg.show { display: block; }
+  .msg.ok { background: var(--gold-soft); color: var(--ok-fg); border-color: var(--gold-deep); }
+  .msg.warn { background: rgba(224,180,92,.1); color: var(--warn-fg); border-color: var(--warn-fg); }
+  .msg.err { background: rgba(227,130,106,.12); color: var(--danger); border-color: var(--danger); }
+
+  .result { margin-top: 16px; display: none; }
+  .result.show { display: block; }
+  .result img { max-width: 100%; border-radius: 11px; border: 1px solid var(--line); }
+  .result .filelist { margin-top: 4px; }
+
+  canvas { display: none; }
+
+  footer { margin-top: 32px; font-size: .78rem; color: var(--fg-soft); line-height: 1.6; }
+  footer code { font-family: var(--font-mono); font-size: .9em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; color: var(--gold); }
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&display=swap">
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Skrývání souborů do obrázků</span>
+    <h1>Pixel Trezor</h1>
+    <div class="rule"></div>
+    <p class="sub">Zabalí vybrané soubory a ukryje je do pixelů obrázku. Výsledkem je obyčejně vypadající PNG, ze kterého lze data zase vytáhnout — volitelně zašifrované heslem. Všechno běží ve vašem prohlížeči, nic se neodesílá.</p>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-hide" aria-selected="true" aria-controls="panel-hide">Skrýt</button>
+    <button class="tab" role="tab" id="tab-reveal" aria-selected="false" aria-controls="panel-reveal">Odhalit</button>
+  </div>
+
+  <!-- ===================== SKRÝT ===================== -->
+  <section id="panel-hide" role="tabpanel" aria-labelledby="tab-hide">
+    <div class="card">
+      <h2><span class="step-no">1</span> Nosný obrázek</h2>
+      <p class="hint">Libovolné JPG/PNG. Čím více pixelů, tím více dat se vejde. Výstup bude vždy PNG.</p>
+      <label class="drop" id="dropCarrier">
+        <input type="file" id="carrierInput" accept="image/*">
+        <span class="drop-title">Klikněte nebo přetáhněte obrázek</span>
+        <span class="drop-sub">JPG, PNG, WEBP…</span>
+      </label>
+      <div class="preview-row" id="carrierPreview" hidden>
+        <img id="carrierImg" alt="Náhled nosného obrázku">
+        <div class="meta" id="carrierMeta"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-no">2</span> Soubory ke skrytí</h2>
+      <p class="hint">Jeden nebo více souborů. Více souborů se automaticky zabalí do jednoho ZIPu.</p>
+      <label class="drop" id="dropPayload">
+        <input type="file" id="payloadInput" multiple>
+        <span class="drop-title">Klikněte nebo přetáhněte soubory</span>
+        <span class="drop-sub">dokumenty, PDF, cokoli</span>
+      </label>
+      <ul class="filelist" id="payloadList"></ul>
+      <div class="capacity" id="capacityBox" hidden>
+        <div class="bar" id="capBar"><span></span></div>
+        <div class="cap-txt" id="capTxt"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-no">3</span> Vytvořit</h2>
+      <p class="hint">Vytvoří PNG se skrytými daty a nabídne ho ke stažení.</p>
+      <label class="optrow">
+        <input type="checkbox" id="encToggle">
+        <span>Zašifrovat heslem <span class="optnote">— AES‑256. Bez hesla pak obsah nikdo nevytáhne.</span></span>
+      </label>
+      <div class="pwrow" id="pwRow" hidden>
+        <input type="password" id="pwInput" placeholder="Zvolte heslo" autocomplete="new-password">
+        <div class="pwhint">Heslo si zapamatujte — bez něj data neobnovíte, nelze ho nijak resetovat.</div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="hideBtn" disabled>Skrýt do obrázku</button>
+        <a class="btn ghost" id="downloadLink" style="display:none;text-decoration:none">Stáhnout PNG</a>
+      </div>
+      <div class="msg" id="hideMsg"></div>
+      <div class="result" id="hideResult">
+        <img id="resultImg" alt="Výsledný obrázek se skrytými daty">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ODHALIT ===================== -->
+  <section id="panel-reveal" role="tabpanel" aria-labelledby="tab-reveal" hidden>
+    <div class="card">
+      <h2><span class="step-no">1</span> Obrázek s daty</h2>
+      <p class="hint">Vložte PNG vytvořené tímto nástrojem. Jiné obrázky neobsahují skrytá data.</p>
+      <label class="drop" id="dropReveal">
+        <input type="file" id="revealInput" accept="image/png,image/*">
+        <span class="drop-title">Klikněte nebo přetáhněte PNG</span>
+        <span class="drop-sub">PNG z Pixel Trezoru</span>
+      </label>
+      <div class="preview-row" id="revealPreview" hidden>
+        <img id="revealImg" alt="Náhled">
+        <div class="meta" id="revealMeta"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-no">2</span> Vytáhnout soubory</h2>
+      <div class="pwrow" id="revealPwRow" hidden>
+        <input type="password" id="revealPwInput" placeholder="Heslo k obrázku" autocomplete="off">
+      </div>
+      <div class="actions">
+        <button class="btn" id="revealBtn" disabled>Odhalit obsah</button>
+      </div>
+      <div class="msg" id="revealMsg"></div>
+      <div class="result" id="revealResult">
+        <ul class="filelist" id="revealList"></ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Metoda: data se ukládají do nejnižších bitů barevných složek pixelů (LSB). Hlavička <code>PXTZ</code> na začátku nese délku, příznak šifrování a kontrolní součet, takže nástroj při odhalování pozná, zda obrázek skutečně data obsahuje a zda jsou šifrovaná.
+    <br>Pozor: výstup musí zůstat PNG. Pokud obrázek znovu uložíte jako JPG nebo projde kompresí (např. nahráním na některé chatovací služby), skrytá data se zničí.
+  </footer>
+</div>
+
+<canvas id="work"></canvas>
+
+<script>
+/* ---------- Záložky ---------- */
+const tabHide = document.getElementById('tab-hide');
+const tabReveal = document.getElementById('tab-reveal');
+const panelHide = document.getElementById('panel-hide');
+const panelReveal = document.getElementById('panel-reveal');
+function selectTab(which) {
+  const hide = which === 'hide';
+  tabHide.setAttribute('aria-selected', hide);
+  tabReveal.setAttribute('aria-selected', !hide);
+  panelHide.hidden = !hide;
+  panelReveal.hidden = hide;
+}
+tabHide.addEventListener('click', () => selectTab('hide'));
+tabReveal.addEventListener('click', () => selectTab('reveal'));
+
+/* ---------- Pomocné ---------- */
+function fmtSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(2) + ' MB';
+}
+function showMsg(el, text, kind) {
+  el.textContent = text;
+  el.className = 'msg show ' + kind;
+}
+/* Drag & drop na drop zónu */
+function wireDrop(el, onFiles) {
+  el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('over'); });
+  el.addEventListener('dragleave', () => el.classList.remove('over'));
+  el.addEventListener('drop', (e) => {
+    e.preventDefault(); el.classList.remove('over');
+    if (e.dataTransfer.files && e.dataTransfer.files.length) onFiles(e.dataTransfer.files);
+  });
+}
+
+/* ---------- Minimální ZIP writer (STORE, bez komprese) ---------- */
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(buf) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+function buildZip(files) {
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+  const dosTime = 0, dosDate = 0x21;
+  for (const f of files) {
+    const nameBytes = enc.encode(f.name);
+    const crc = crc32(f.data);
+    const size = f.data.length;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true);
+    lh.setUint16(4, 20, true);
+    lh.setUint16(6, 0x0800, true);
+    lh.setUint16(8, 0, true);
+    lh.setUint16(10, dosTime, true);
+    lh.setUint16(12, dosDate, true);
+    lh.setUint32(14, crc, true);
+    lh.setUint32(18, size, true);
+    lh.setUint32(22, size, true);
+    lh.setUint16(26, nameBytes.length, true);
+    lh.setUint16(28, 0, true);
+    const lhU = new Uint8Array(lh.buffer);
+    chunks.push(lhU, nameBytes, f.data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true);
+    ch.setUint16(4, 20, true);
+    ch.setUint16(6, 20, true);
+    ch.setUint16(8, 0x0800, true);
+    ch.setUint16(10, 0, true);
+    ch.setUint16(12, dosTime, true);
+    ch.setUint16(14, dosDate, true);
+    ch.setUint32(16, crc, true);
+    ch.setUint32(20, size, true);
+    ch.setUint32(24, size, true);
+    ch.setUint16(28, nameBytes.length, true);
+    ch.setUint16(30, 0, true);
+    ch.setUint16(32, 0, true);
+    ch.setUint16(34, 0, true);
+    ch.setUint16(36, 0, true);
+    ch.setUint32(38, 0, true);
+    ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), nameBytes);
+    offset += lhU.length + nameBytes.length + f.data.length;
+  }
+  const centralStart = offset;
+  let centralSize = 0;
+  for (const c of central) centralSize += c.length;
+  const eocd = new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0, 0x06054b50, true);
+  eocd.setUint16(8, files.length, true);
+  eocd.setUint16(10, files.length, true);
+  eocd.setUint32(12, centralSize, true);
+  eocd.setUint32(16, centralStart, true);
+  eocd.setUint16(20, 0, true);
+  const all = [...chunks, ...central, new Uint8Array(eocd.buffer)];
+  let total = 0;
+  for (const c of all) total += c.length;
+  const out = new Uint8Array(total);
+  let p = 0;
+  for (const c of all) { out.set(c, p); p += c.length; }
+  return out;
+}
+
+/* ---------- Minimální ZIP reader (STORE) ---------- */
+function readZip(buf) {
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= 0; i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('Neplatný archiv.');
+  const count = dv.getUint16(eocd + 10, true);
+  let cdOff = dv.getUint32(eocd + 16, true);
+  const files = [];
+  for (let n = 0; n < count; n++) {
+    if (dv.getUint32(cdOff, true) !== 0x02014b50) break;
+    const method = dv.getUint16(cdOff + 10, true);
+    const compSize = dv.getUint32(cdOff + 20, true);
+    const nameLen = dv.getUint16(cdOff + 28, true);
+    const extraLen = dv.getUint16(cdOff + 30, true);
+    const commentLen = dv.getUint16(cdOff + 32, true);
+    const lhOff = dv.getUint32(cdOff + 42, true);
+    const name = dec.decode(buf.subarray(cdOff + 46, cdOff + 46 + nameLen));
+    const lhNameLen = dv.getUint16(lhOff + 26, true);
+    const lhExtraLen = dv.getUint16(lhOff + 28, true);
+    const dataStart = lhOff + 30 + lhNameLen + lhExtraLen;
+    if (method !== 0) throw new Error('Nepodporovaná komprese v archivu.');
+    const data = buf.subarray(dataStart, dataStart + compSize);
+    files.push({ name, data });
+    cdOff += 46 + nameLen + extraLen + commentLen;
+  }
+  return files;
+}
+
+/* ---------- Šifrování (AES-256-GCM, klíč z hesla PBKDF2) ---------- */
+async function deriveKey(password, salt) {
+  const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 150000, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+  );
+}
+async function encryptData(data, password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(password, salt);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data));
+  const out = new Uint8Array(28 + ct.length);
+  out.set(salt, 0); out.set(iv, 16); out.set(ct, 28);
+  return out;
+}
+async function decryptData(blob, password) {
+  const salt = blob.subarray(0, 16);
+  const iv = blob.subarray(16, 28);
+  const ct = blob.subarray(28);
+  const key = await deriveKey(password, salt);
+  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct));
+}
+
+/* ---------- LSB stego ---------- */
+const MAGIC = enc.encode('PXTZ');
+const FLAG_ENCRYPTED = 1;
+// Formát payloadu: [PXTZ(4)][flags(1)][len uint32 LE][crc32 uint32 LE][data...]
+const HEADER_LEN = 13;
+function buildPayload(data, flags) {
+  const header = new Uint8Array(HEADER_LEN);
+  header.set(MAGIC, 0);
+  header[4] = flags || 0;
+  const dv = new DataView(header.buffer);
+  dv.setUint32(5, data.length, true);
+  dv.setUint32(9, crc32(data), true);
+  const out = new Uint8Array(HEADER_LEN + data.length);
+  out.set(header, 0);
+  out.set(data, HEADER_LEN);
+  return out;
+}
+function capacityBytes(w, h) {
+  return Math.floor((w * h * 3) / 8);
+}
+function embed(imageData, payload) {
+  const px = imageData.data;
+  const bits = payload.length * 8;
+  let bit = 0;
+  for (let i = 0; i < px.length && bit < bits; i += 4) {
+    for (let c = 0; c < 3 && bit < bits; c++) {
+      const byteIdx = bit >> 3;
+      const bitIdx = 7 - (bit & 7);
+      const b = (payload[byteIdx] >> bitIdx) & 1;
+      px[i + c] = (px[i + c] & 0xFE) | b;
+      bit++;
+    }
+  }
+  return imageData;
+}
+function extract(imageData) {
+  const px = imageData.data;
+  function readBytes(startBit, nBytes) {
+    const out = new Uint8Array(nBytes);
+    let bit = startBit;
+    for (let k = 0; k < nBytes; k++) {
+      let val = 0;
+      for (let j = 0; j < 8; j++) {
+        const absBit = bit;
+        const pixelIdx = Math.floor(absBit / 3);
+        const chan = absBit % 3;
+        const b = px[pixelIdx * 4 + chan] & 1;
+        val = (val << 1) | b;
+        bit++;
+      }
+      out[k] = val;
+    }
+    return out;
+  }
+  const header = readBytes(0, HEADER_LEN);
+  for (let k = 0; k < 4; k++) if (header[k] !== MAGIC[k]) return null;
+  const flags = header[4];
+  const dv = new DataView(header.buffer);
+  const len = dv.getUint32(5, true);
+  const crc = dv.getUint32(9, true);
+  const maxBytes = capacityBytes(imageData.width, imageData.height) - HEADER_LEN;
+  if (len > maxBytes || len < 0) return null;
+  const data = readBytes(HEADER_LEN * 8, len);
+  const encrypted = (flags & FLAG_ENCRYPTED) !== 0;
+  if (crc32(data) !== crc) return { data, corrupt: true, encrypted };
+  return { data, corrupt: false, encrypted };
+}
+
+/* ====================================================
+   SKRÝT — stav a UI
+   ==================================================== */
+const canvas = document.getElementById('work');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+let carrierImageData = null;
+let carrierName = '';
+let payloadFiles = [];
+
+const carrierInput = document.getElementById('carrierInput');
+const carrierPreview = document.getElementById('carrierPreview');
+const carrierImg = document.getElementById('carrierImg');
+const carrierMeta = document.getElementById('carrierMeta');
+const payloadInput = document.getElementById('payloadInput');
+const payloadList = document.getElementById('payloadList');
+const capacityBox = document.getElementById('capacityBox');
+const capBar = document.getElementById('capBar');
+const capTxt = document.getElementById('capTxt');
+const encToggle = document.getElementById('encToggle');
+const pwRow = document.getElementById('pwRow');
+const pwInput = document.getElementById('pwInput');
+const hideBtn = document.getElementById('hideBtn');
+const hideMsg = document.getElementById('hideMsg');
+const hideResult = document.getElementById('hideResult');
+const resultImg = document.getElementById('resultImg');
+const downloadLink = document.getElementById('downloadLink');
+
+function readFileAsBytes(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(new Uint8Array(r.result));
+    r.onerror = rej;
+    r.readAsArrayBuffer(file);
+  });
+}
+
+encToggle.addEventListener('change', () => {
+  pwRow.hidden = !encToggle.checked;
+  updateCapacity();
+});
+
+function loadCarrier(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  carrierName = file.name.replace(/\.[^.]+$/, '');
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    ctx.drawImage(img, 0, 0);
+    carrierImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    carrierImg.src = url;
+    carrierMeta.innerHTML = `<b>${file.name}</b><br>${img.naturalWidth} × ${img.naturalHeight} px<br>Kapacita: <b>${fmtSize(capacityBytes(img.naturalWidth, img.naturalHeight) - HEADER_LEN)}</b>`;
+    carrierPreview.hidden = false;
+    updateCapacity();
+  };
+  img.src = url;
+}
+carrierInput.addEventListener('change', (e) => loadCarrier(e.target.files[0]));
+wireDrop(document.getElementById('dropCarrier'), (files) => loadCarrier(files[0]));
+
+async function addPayloadFiles(fileList) {
+  for (const file of fileList) {
+    const data = await readFileAsBytes(file);
+    payloadFiles.push({ name: file.name, data });
+  }
+  renderPayload();
+}
+payloadInput.addEventListener('change', async (e) => {
+  await addPayloadFiles(e.target.files);
+  payloadInput.value = '';
+});
+wireDrop(document.getElementById('dropPayload'), (files) => addPayloadFiles(files));
+
+function renderPayload() {
+  payloadList.innerHTML = '';
+  payloadFiles.forEach((f, idx) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="nm">${f.name}</span><span class="sz">${fmtSize(f.data.length)}</span>`;
+    const rm = document.createElement('button');
+    rm.textContent = '×';
+    rm.title = 'Odebrat';
+    rm.addEventListener('click', () => { payloadFiles.splice(idx, 1); renderPayload(); });
+    li.appendChild(rm);
+    payloadList.appendChild(li);
+  });
+  updateCapacity();
+}
+
+function currentPayloadBytes() {
+  if (payloadFiles.length === 0) return 0;
+  let total;
+  if (payloadFiles.length === 1) {
+    total = payloadFiles[0].data.length + HEADER_LEN;
+  } else {
+    total = 22 + HEADER_LEN;
+    for (const f of payloadFiles) total += 30 + 46 + enc.encode(f.name).length * 2 + f.data.length;
+  }
+  if (encToggle.checked) total += 44;
+  return total;
+}
+
+function updateCapacity() {
+  if (!carrierImageData || payloadFiles.length === 0) {
+    capacityBox.hidden = true;
+    hideBtn.disabled = true;
+    return;
+  }
+  capacityBox.hidden = false;
+  const cap = capacityBytes(carrierImageData.width, carrierImageData.height) - HEADER_LEN;
+  const need = currentPayloadBytes();
+  const pct = Math.min(100, (need / cap) * 100);
+  capBar.querySelector('span').style.width = pct + '%';
+  const over = need > cap;
+  capBar.classList.toggle('over', over);
+  capTxt.textContent = over
+    ? `Data (${fmtSize(need)}) se do obrázku nevejdou — kapacita je ${fmtSize(cap)}. Zvolte větší obrázek nebo méně souborů.`
+    : `Využití: ${fmtSize(need)} z ${fmtSize(cap)} (${pct.toFixed(0)} %)`;
+  hideBtn.disabled = over;
+}
+
+hideBtn.addEventListener('click', async () => {
+  hideMsg.className = 'msg';
+  hideResult.className = 'result';
+  downloadLink.style.display = 'none';
+  const useEnc = encToggle.checked;
+  if (useEnc && pwInput.value.length < 4) {
+    showMsg(hideMsg, 'Zadejte heslo (alespoň 4 znaky), nebo šifrování vypněte.', 'err');
+    pwInput.focus();
+    return;
+  }
+  hideBtn.disabled = true;
+  try {
+    let data, isZip = false;
+    if (payloadFiles.length === 1) {
+      data = payloadFiles[0].data;
+    } else {
+      data = buildZip(payloadFiles);
+      isZip = true;
+    }
+    let flags = 0;
+    if (useEnc) {
+      data = await encryptData(data, pwInput.value);
+      flags |= FLAG_ENCRYPTED;
+    }
+    const payload = buildPayload(data, flags);
+    const cap = capacityBytes(carrierImageData.width, carrierImageData.height);
+    if (payload.length > cap) {
+      showMsg(hideMsg, 'Data se nevešla. Zvolte větší obrázek.', 'err');
+      hideBtn.disabled = false;
+      return;
+    }
+    const copy = new ImageData(
+      new Uint8ClampedArray(carrierImageData.data),
+      carrierImageData.width, carrierImageData.height
+    );
+    embed(copy, payload);
+    ctx.putImageData(copy, 0, 0);
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      resultImg.src = url;
+      hideResult.className = 'result show';
+      downloadLink.href = url;
+      downloadLink.download = (carrierName || 'obrazek') + '_trezor.png';
+      downloadLink.style.display = 'inline-block';
+      const label = isZip
+        ? `${payloadFiles.length} souborů zabaleno do ZIP a skryto`
+        : `Soubor „${payloadFiles[0].name}" skryt`;
+      const encNote = useEnc ? ' a zašifrováno heslem' : '';
+      showMsg(hideMsg, `${label}${encNote}. Výsledný PNG má ${fmtSize(blob.size)}. Stáhněte ho tlačítkem vpravo.`, 'ok');
+      hideBtn.disabled = false;
+    }, 'image/png');
+  } catch (err) {
+    showMsg(hideMsg, 'Chyba při skrývání: ' + err.message, 'err');
+    hideBtn.disabled = false;
+  }
+});
+
+/* ====================================================
+   ODHALIT
+   ==================================================== */
+const revealInput = document.getElementById('revealInput');
+const revealPreview = document.getElementById('revealPreview');
+const revealImg = document.getElementById('revealImg');
+const revealMeta = document.getElementById('revealMeta');
+const revealBtn = document.getElementById('revealBtn');
+const revealMsg = document.getElementById('revealMsg');
+const revealResult = document.getElementById('revealResult');
+const revealList = document.getElementById('revealList');
+const revealPwRow = document.getElementById('revealPwRow');
+const revealPwInput = document.getElementById('revealPwInput');
+
+let revealImageData = null;
+
+function loadReveal(file) {
+  if (!file) return;
+  revealMsg.className = 'msg';
+  revealResult.className = 'result';
+  revealPwRow.hidden = true;
+  revealPwInput.value = '';
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const cc = c.getContext('2d', { willReadFrequently: true });
+    cc.drawImage(img, 0, 0);
+    revealImageData = cc.getImageData(0, 0, c.width, c.height);
+    revealImg.src = url;
+    revealMeta.innerHTML = `<b>${file.name}</b><br>${img.naturalWidth} × ${img.naturalHeight} px`;
+    revealPreview.hidden = false;
+    revealBtn.disabled = false;
+    if (/\.jpe?g$/i.test(file.name)) {
+      showMsg(revealMsg, 'Upozornění: soubor je JPG. Skrytá data v JPG téměř jistě nepřežila kompresi.', 'warn');
+    }
+  };
+  img.src = url;
+}
+revealInput.addEventListener('change', (e) => loadReveal(e.target.files[0]));
+wireDrop(document.getElementById('dropReveal'), (files) => loadReveal(files[0]));
+
+function triggerDownload(name, bytes) {
+  const blob = new Blob([bytes]);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+revealBtn.addEventListener('click', async () => {
+  revealResult.className = 'result';
+  revealList.innerHTML = '';
+  try {
+    const res = extract(revealImageData);
+    if (!res) {
+      showMsg(revealMsg, 'V tomto obrázku nebyla nalezena žádná skrytá data (chybí značka PXTZ). Jde buď o běžný obrázek, nebo byl uložen ve formátu, který data zničil (např. JPG).', 'err');
+      return;
+    }
+    if (res.corrupt) {
+      showMsg(revealMsg, 'Data byla nalezena, ale kontrolní součet nesouhlasí — obrázek je pravděpodobně poškozený nebo byl překomprimován. Pokusím se je přesto zpracovat.', 'warn');
+    }
+
+    let payloadData = res.data;
+    if (res.encrypted) {
+      revealPwRow.hidden = false;
+      const pw = revealPwInput.value;
+      if (!pw) {
+        showMsg(revealMsg, 'Obrázek je zašifrovaný. Zadejte heslo a klikněte znovu na „Odhalit obsah".', 'warn');
+        revealPwInput.focus();
+        return;
+      }
+      revealBtn.disabled = true;
+      try {
+        payloadData = await decryptData(res.data, pw);
+      } catch (e) {
+        showMsg(revealMsg, 'Nesprávné heslo, nebo jsou data poškozená. Zkontrolujte heslo a zkuste to znovu.', 'err');
+        revealBtn.disabled = false;
+        return;
+      }
+      revealBtn.disabled = false;
+    }
+
+    let files;
+    const isZip = payloadData.length > 4 &&
+      payloadData[0] === 0x50 && payloadData[1] === 0x4B &&
+      payloadData[2] === 0x03 && payloadData[3] === 0x04;
+    if (isZip) {
+      try { files = readZip(payloadData); }
+      catch (e) { files = [{ name: 'obsah.zip', data: payloadData }]; }
+    } else {
+      files = [{ name: 'odhaleny_soubor', data: payloadData }];
+    }
+    files.forEach((f) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="nm">${f.name}</span><span class="sz">${fmtSize(f.data.length)}</span>`;
+      const dl = document.createElement('button');
+      dl.textContent = '↓';
+      dl.title = 'Stáhnout';
+      dl.style.fontSize = '1rem';
+      dl.addEventListener('click', () => triggerDownload(f.name, f.data));
+      li.appendChild(dl);
+      revealList.appendChild(li);
+    });
+    revealResult.className = 'result show';
+    if (!res.corrupt) {
+      const decNote = res.encrypted ? ' a dešifrováno' : '';
+      showMsg(revealMsg, `Nalezeno, vytaženo${decNote}: ${files.length} ${files.length === 1 ? 'soubor' : 'souborů'}. Stáhněte je šipkou vpravo u každé položky.`, 'ok');
+    }
+  } catch (err) {
+    showMsg(revealMsg, 'Chyba při odhalování: ' + err.message, 'err');
+  }
+});
+</script>
