@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0b0b0c">
 <title>Rozpočet stavby</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap&subset=latin-ext,cyrillic" rel="stylesheet">
 <style>
 :root{--bg:#0b0b0c;--card:#161618;--card2:#1e1e21;--line:rgba(255,255,255,.09);--text:#f4f4f5;--muted:#8e8e93;--gold:#f5c518;--gold2:#d4a017}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -14,8 +14,11 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;background:va
   background-image:radial-gradient(800px 500px at 100% -10%,rgba(245,197,24,.14),transparent 60%),linear-gradient(180deg,#0e0e10,#070708)}
 .wrap{max-width:680px;margin:0 auto;padding:max(14px,env(safe-area-inset-top)) 16px 120px}
 .top{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-.back{color:var(--gold);text-decoration:none;font-weight:600;display:flex;align-items:center;gap:2px}
-.top h1{flex:1;text-align:center;font-size:17px;font-weight:700;margin-right:52px}
+.back{color:var(--gold);text-decoration:none;font-weight:600;white-space:nowrap}
+.top h1{flex:1;text-align:center;font-size:17px;font-weight:700}
+.lang{display:flex;background:#1e1e21;border:1px solid var(--line);border-radius:10px;padding:2px}
+.lang button{border:0;background:none;color:var(--muted);font:inherit;font-size:13px;font-weight:700;padding:6px 9px;border-radius:8px;cursor:pointer}
+.lang button.on{background:var(--gold);color:#111}
 .tape{height:6px;border-radius:2px;background:repeating-linear-gradient(90deg,#1a1a1a 0 1px,transparent 1px 8px),linear-gradient(var(--gold),var(--gold2));opacity:.9}
 .prog{height:4px;background:#222;border-radius:4px;margin:14px 0 6px;overflow:hidden}
 .prog i{display:block;height:100%;background:linear-gradient(90deg,var(--gold2),var(--gold));width:0;transition:width .3s}
@@ -33,7 +36,7 @@ input[type=text],input[type=number],textarea,select{width:100%;background:var(--
 input:focus,textarea:focus,select:focus{border-color:var(--gold)}
 textarea{min-height:90px;resize:vertical}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.toggle{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.toggle{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
 .toggle:last-child{border:0}
 .sw{position:relative;width:51px;height:31px;flex:none}
 .sw input{opacity:0;width:0;height:0}
@@ -53,170 +56,264 @@ textarea{min-height:90px;resize:vertical}
 .toast.show{transform:translateX(-50%) translateY(0)}
 .step{display:none}.step.on{display:block;animation:in .25s ease}
 @keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-@media(max-width:420px){.row{grid-template-columns:1fr}h2{font-size:24px}}
+@media(max-width:420px){.row{grid-template-columns:1fr}h2{font-size:24px}.top h1{font-size:15px}}
 </style>
 </head>
 <body>
-<div class="toast" id="toast">Zkopírováno</div>
+<div class="toast" id="toast" data-t="copied"></div>
 <div class="wrap">
-  <div class="top"><a class="back" href="index.html">‹ Aplikace</a><h1>Rozpočet stavby</h1></div>
+  <div class="top">
+    <a class="back" href="index.html" data-t="back"></a>
+    <h1 data-t="title"></h1>
+    <div class="lang" id="lang"><button data-l="cs">CZ</button><button data-l="uk">UA</button></div>
+  </div>
   <div class="tape"></div>
   <div class="prog"><i id="bar"></i></div>
   <div class="stepinfo" id="stepinfo"></div>
 
-  <!-- 1 -->
-  <section class="step" data-title="Typ zakázky">
-    <h2>O jakou zakázku jde?</h2><p class="sub">Vyberte typ a stručně popište, co investor chce.</p>
-    <div class="card"><h3>Typ</h3><div class="chips" data-name="typ" data-single>
-      <button class="chip">Rekonstrukce bytu</button><button class="chip">Rekonstrukce koupelny / WC</button>
-      <button class="chip">Novostavba RD</button><button class="chip">Rekonstrukce RD</button>
-      <button class="chip">Přístavba / nástavba</button><button class="chip">Střecha</button>
-      <button class="chip">Fasáda / zateplení</button><button class="chip">Komerční prostor</button>
-      <button class="chip">Venkovní úpravy</button><button class="chip">Jiné</button></div></div>
+  <section class="step" data-s="1">
+    <h2 data-t="s1h"></h2><p class="sub" data-t="s1p"></p>
+    <div class="card"><h3 data-t="type"></h3><div class="chips" data-name="typ" data-single></div></div>
     <div class="card">
-      <div class="field"><label>Název / označení zakázky</label><input type="text" id="nazev" placeholder="např. Byt 3+1, Kladno – kompletní rekonstrukce"></div>
-      <div class="field"><label>Popis od investora</label><textarea id="popis" placeholder="Co chce investor udělat, jeho představy, standard…"></textarea></div>
+      <div class="field"><label data-t="name"></label><input type="text" id="nazev" data-ph="namePh"></div>
+      <div class="field"><label data-t="desc"></label><textarea id="popis" data-ph="descPh"></textarea></div>
     </div>
   </section>
 
-  <!-- 2 -->
-  <section class="step" data-title="Podklady">
-    <h2>Co máte k dispozici?</h2><p class="sub">Přiložte je v chatu s Claudem spolu s promptem.</p>
-    <div class="card"><h3>Podklady</h3><div class="chips" data-name="podklady">
-      <button class="chip">Projektová dokumentace</button><button class="chip">Výkaz výměr</button>
-      <button class="chip">Půdorysy / výkresy</button><button class="chip">Vlastní zaměření</button>
-      <button class="chip">Fotky stavu</button><button class="chip">Technická zpráva</button>
-      <button class="chip">Jen slovní popis</button></div></div>
+  <section class="step" data-s="2">
+    <h2 data-t="s2h"></h2><p class="sub" data-t="s2p"></p>
+    <div class="card"><h3 data-t="docs"></h3><div class="chips" data-name="podklady"></div></div>
     <div class="card">
       <div class="row">
-        <div class="field"><label>Podlahová plocha (m²)</label><input type="number" id="plocha" inputmode="decimal"></div>
-        <div class="field"><label>Světlá výška (m)</label><input type="number" id="vyska" inputmode="decimal" step="0.01"></div>
+        <div class="field"><label data-t="area"></label><input type="number" id="plocha" inputmode="decimal"></div>
+        <div class="field"><label data-t="height"></label><input type="number" id="vyska" inputmode="decimal" step="0.01"></div>
       </div>
-      <div class="field"><label>Známé rozměry a výměry</label><textarea id="vymery" placeholder="např. koupelna 2,1 × 1,8 m, obklad do 2 m, 3 okna 120×150…"></textarea></div>
+      <div class="field"><label data-t="dims"></label><textarea id="vymery" data-ph="dimsPh"></textarea></div>
     </div>
   </section>
 
-  <!-- 3 -->
-  <section class="step" data-title="Rozsah prací">
-    <h2>Co všechno se bude dělat?</h2><p class="sub">Zaškrtněte vše, co do zakázky patří. Na nezaškrtnuté AI upozorní, pokud by mohly chybět.</p>
+  <section class="step" data-s="3">
+    <h2 data-t="s3h"></h2><p class="sub" data-t="s3p"></p>
     <div id="prace"></div>
-    <div class="card"><div class="field"><label>Další práce / upřesnění</label><textarea id="pracejine"></textarea></div></div>
+    <div class="card"><div class="field"><label data-t="moreWork"></label><textarea id="pracejine"></textarea></div></div>
   </section>
 
-  <!-- 4 -->
-  <section class="step" data-title="Podmínky stavby">
-    <h2>Kde a za jakých podmínek?</h2><p class="sub">Tohle často rozhoduje o vedlejších nákladech.</p>
+  <section class="step" data-s="4">
+    <h2 data-t="s4h"></h2><p class="sub" data-t="s4p"></p>
     <div class="card">
       <div class="row">
-        <div class="field"><label>Lokalita</label><input type="text" id="lokalita" placeholder="obec / část Prahy"></div>
-        <div class="field"><label>Podlaží</label><input type="text" id="patro" placeholder="např. 4. NP"></div>
+        <div class="field"><label data-t="loc"></label><input type="text" id="lokalita" data-ph="locPh"></div>
+        <div class="field"><label data-t="floor"></label><input type="text" id="patro" data-ph="floorPh"></div>
       </div>
       <div class="row">
-        <div class="field"><label>Požadovaný termín</label><input type="text" id="termin" placeholder="např. 03–05/2027"></div>
-        <div class="field"><label>Standard</label><select id="standard"><option>Běžný</option><option>Úsporný</option><option>Vyšší</option><option>Nadstandard</option></select></div>
+        <div class="field"><label data-t="term"></label><input type="text" id="termin" data-ph="termPh"></div>
+        <div class="field"><label data-t="std"></label><select id="standard"></select></div>
       </div>
     </div>
-    <div class="card"><h3>Okolnosti</h3>
-      <div class="toggle"><span>Výtah k dispozici</span><label class="sw"><input type="checkbox" id="vytah"><span></span></label></div>
-      <div class="toggle"><span>Objekt je obydlený</span><label class="sw"><input type="checkbox" id="obydleny"><span></span></label></div>
-      <div class="toggle"><span>Komplikované parkování / zásobování</span><label class="sw"><input type="checkbox" id="parkovani"><span></span></label></div>
-      <div class="toggle"><span>Nutný zábor veřejného prostranství</span><label class="sw"><input type="checkbox" id="zabor"><span></span></label></div>
-      <div class="toggle"><span>Starý objekt – riziko skrytých vad</span><label class="sw"><input type="checkbox" id="stary"><span></span></label></div>
+    <div class="card"><h3 data-t="cond"></h3>
+      <div class="toggle"><span data-t="c_lift"></span><label class="sw"><input type="checkbox" id="vytah"><span></span></label></div>
+      <div class="toggle"><span data-t="c_occ"></span><label class="sw"><input type="checkbox" id="obydleny"><span></span></label></div>
+      <div class="toggle"><span data-t="c_park"></span><label class="sw"><input type="checkbox" id="parkovani"><span></span></label></div>
+      <div class="toggle"><span data-t="c_zabor"></span><label class="sw"><input type="checkbox" id="zabor"><span></span></label></div>
+      <div class="toggle"><span data-t="c_old"></span><label class="sw"><input type="checkbox" id="stary"><span></span></label></div>
     </div>
   </section>
 
-  <!-- 5 -->
-  <section class="step" data-title="Firemní parametry">
-    <h2>Parametry firmy</h2><p class="sub">Uloží se v tomto prohlížeči, příště je nemusíte zadávat.</p>
+  <section class="step" data-s="5">
+    <h2 data-t="s5h"></h2><p class="sub" data-t="s5p"></p>
     <div class="card">
       <div class="row">
-        <div class="field"><label>Hodinová sazba dělník (Kč)</label><input type="number" class="firm" id="sazbaD"></div>
-        <div class="field"><label>Hodinová sazba řemeslník (Kč)</label><input type="number" class="firm" id="sazbaR"></div>
+        <div class="field"><label data-t="rateW"></label><input type="number" class="firm" id="sazbaD"></div>
+        <div class="field"><label data-t="rateC"></label><input type="number" class="firm" id="sazbaR"></div>
       </div>
       <div class="row">
-        <div class="field"><label>Režie (%)</label><input type="number" class="firm" id="rezie"></div>
-        <div class="field"><label>Zisk / marže (%)</label><input type="number" class="firm" id="marze"></div>
+        <div class="field"><label data-t="overhead"></label><input type="number" class="firm" id="rezie"></div>
+        <div class="field"><label data-t="profit"></label><input type="number" class="firm" id="marze"></div>
       </div>
       <div class="row">
-        <div class="field"><label>Přirážka na materiál (%)</label><input type="number" class="firm" id="matPrir"></div>
-        <div class="field"><label>Sazba DPH</label><select class="firm" id="dph"><option>12 % (bydlení)</option><option>21 %</option><option>Neplátce DPH</option><option>Přenesená daňová povinnost</option></select></div>
+        <div class="field"><label data-t="matUp"></label><input type="number" class="firm" id="matPrir"></div>
+        <div class="field"><label data-t="vat"></label><select class="firm" id="dph"></select></div>
       </div>
-      <div class="field"><label>Co dělá firma sama / co subdodavatelsky</label><textarea class="firm" id="subdod" placeholder="např. elektro a VZT subdodavatel, zbytek vlastními lidmi"></textarea></div>
-      <div class="field"><label>Dodavatelé a známé ceny materiálu</label><textarea class="firm" id="dodavatele" placeholder="např. stavebniny STAVIMEX, sádrokarton … Kč/m²"></textarea></div>
+      <div class="field"><label data-t="subc"></label><textarea class="firm" id="subdod" data-ph="subcPh"></textarea></div>
+      <div class="field"><label data-t="supp"></label><textarea class="firm" id="dodavatele" data-ph="suppPh"></textarea></div>
     </div>
   </section>
 
-  <!-- 6 -->
-  <section class="step" data-title="Výstup">
-    <h2>Jaký výsledek chcete?</h2><p class="sub">Podle toho AI zvolí podrobnost.</p>
-    <div class="card"><h3>Přesnost</h3><div class="chips" data-name="presnost" data-single>
-      <button class="chip on">Položkový rozpočet</button><button class="chip">Orientační odhad</button><button class="chip">Kontrola cizího rozpočtu</button></div></div>
-    <div class="card"><h3>Forma</h3><div class="chips" data-name="forma" data-single>
-      <button class="chip on">Tabulka v chatu</button><button class="chip">Soubor Excel</button><button class="chip">Nabídka pro zákazníka</button></div></div>
-    <div class="card">
-      <div class="field"><label>Rezerva na nepředvídané práce (%)</label><input type="number" id="rezerva" value="5"></div>
-    </div>
+  <section class="step" data-s="6">
+    <h2 data-t="s6h"></h2><p class="sub" data-t="s6p"></p>
+    <div class="card"><h3 data-t="acc"></h3><div class="chips" data-name="presnost" data-single></div></div>
+    <div class="card"><h3 data-t="form"></h3><div class="chips" data-name="forma" data-single></div></div>
+    <div class="card"><div class="field"><label data-t="reserve"></label><input type="number" id="rezerva" value="5"></div></div>
   </section>
 
-  <!-- 7 -->
-  <section class="step" data-title="Hotový prompt">
-    <h2>Prompt je připraven</h2><p class="sub">Zkopírujte ho, vložte do Clauda a přiložte podklady.</p>
+  <section class="step" data-s="7">
+    <h2 data-t="s7h"></h2><p class="sub" data-t="s7p"></p>
     <div class="card out" id="out"></div>
-    <p class="hint">Tip: po vygenerování rozpočtu požádejte Clauda „projdi rozpočet znovu a hledej chybějící položky a podhodnocené ceny“. Ceny vždy ověřte u svých dodavatelů — AI odhaduje, nezná vaše skutečné nákupní ceny.</p>
+    <p class="hint" data-t="tip"></p>
   </section>
 </div>
 
 <nav class="nav"><div class="in">
-  <button class="btn sec" id="prev">Zpět</button>
-  <button class="btn pri" id="next">Další</button>
+  <button class="btn sec" id="prev"></button>
+  <button class="btn pri" id="next"></button>
 </div></nav>
 
 <script>
-const PRACE = {
-  "Příprava a bourání":["Zařízení staveniště","Ochrana stávajících konstrukcí","Bourací práce","Vybourání obkladů a dlažeb","Demontáž zařizovacích předmětů","Odvoz a likvidace suti","Výkopy / zemní práce"],
-  "Hrubá stavba":["Základy","Zdění","Příčky","Sádrokarton","Stropy / překlady","Statické zajištění","Lešení"],
-  "Povrchy":["Omítky","Stěrky","Malby","Obklady","Dlažby","Podlahy (vinyl/dřevo)","Hydroizolace","Vyrovnávací potěry"],
-  "Výplně a konstrukce":["Okna","Dveře","Zárubně","Parapety","Klempířské prvky","Zámečnické prvky"],
-  "Technika (TZB)":["Elektroinstalace","Zdravotechnika (ZTI)","Vytápění","Vzduchotechnika","Plyn","Slaboproud"],
-  "Obálka a střecha":["Zateplení","Fasáda","Střešní krytina","Krov","Okapy a svody"],
-  "Ostatní":["Kuchyňská linka","Zařizovací předměty","Úklid po stavbě","Revize a zkoušky","Projekt / statik","Inženýrská činnost"]
-};
-document.getElementById("prace").innerHTML=Object.entries(PRACE).map(([k,v])=>
-  `<div class="card"><h3>${k}</h3><div class="chips" data-name="prace">${v.map(p=>`<button class="chip">${p}</button>`).join("")}</div></div>`).join("");
+/* ===== Texty: cs = čeština, uk = ukrajinština ===== */
+const T = {
+cs:{
+  copied:"Zkopírováno", back:"‹ Aplikace", title:"Rozpočet stavby", step:"Krok", of:"z",
+  prev:"Zpět", next:"Další", make:"Vytvořit prompt", copy:"Zkopírovat prompt",
+  titles:["Typ zakázky","Podklady","Rozsah prací","Podmínky stavby","Firemní parametry","Výstup","Hotový prompt"],
+  s1h:"O jakou zakázku jde?", s1p:"Vyberte typ a stručně popište, co investor chce.", type:"Typ",
+  name:"Název / označení zakázky", namePh:"např. Byt 3+1, Kladno – kompletní rekonstrukce",
+  desc:"Popis od investora", descPh:"Co chce investor udělat, jeho představy, standard…",
+  s2h:"Co máte k dispozici?", s2p:"Přiložte je v chatu s Claudem spolu s promptem.", docs:"Podklady",
+  area:"Podlahová plocha (m²)", height:"Světlá výška (m)", dims:"Známé rozměry a výměry",
+  dimsPh:"např. koupelna 2,1 × 1,8 m, obklad do 2 m, 3 okna 120×150…",
+  s3h:"Co všechno se bude dělat?", s3p:"Zaškrtněte vše, co do zakázky patří. Na nezaškrtnuté AI upozorní, pokud by mohly chybět.",
+  moreWork:"Další práce / upřesnění",
+  s4h:"Kde a za jakých podmínek?", s4p:"Tohle často rozhoduje o vedlejších nákladech.",
+  loc:"Lokalita", locPh:"obec / část Prahy", floor:"Podlaží", floorPh:"např. 4. NP",
+  term:"Požadovaný termín", termPh:"např. 03–05/2027", std:"Standard", cond:"Okolnosti",
+  c_lift:"Výtah k dispozici", c_occ:"Objekt je obydlený", c_park:"Komplikované parkování / zásobování",
+  c_zabor:"Nutný zábor veřejného prostranství", c_old:"Starý objekt – riziko skrytých vad",
+  s5h:"Parametry firmy", s5p:"Uloží se v tomto prohlížeči, příště je nemusíte zadávat.",
+  rateW:"Hodinová sazba dělník (Kč)", rateC:"Hodinová sazba řemeslník (Kč)", overhead:"Režie (%)", profit:"Zisk / marže (%)",
+  matUp:"Přirážka na materiál (%)", vat:"Sazba DPH", subc:"Co dělá firma sama / co subdodavatelsky",
+  subcPh:"např. elektro a VZT subdodavatel, zbytek vlastními lidmi", supp:"Dodavatelé a známé ceny materiálu",
+  suppPh:"např. stavebniny STAVIMEX, sádrokarton … Kč/m²",
+  s6h:"Jaký výsledek chcete?", s6p:"Podle toho AI zvolí podrobnost.", acc:"Přesnost", form:"Forma",
+  reserve:"Rezerva na nepředvídané práce (%)",
+  s7h:"Prompt je připraven", s7p:"Zkopírujte ho, vložte do Clauda a přiložte podklady.",
+  tip:"Tip: po vygenerování rozpočtu požádejte Clauda „projdi rozpočet znovu a hledej chybějící položky a podhodnocené ceny“. Ceny vždy ověřte u svých dodavatelů — AI odhaduje, nezná vaše skutečné nákupní ceny.",
+  typ:["Rekonstrukce bytu","Rekonstrukce koupelny / WC","Novostavba RD","Rekonstrukce RD","Přístavba / nástavba","Střecha","Fasáda / zateplení","Komerční prostor","Venkovní úpravy","Jiné"],
+  podklady:["Projektová dokumentace","Výkaz výměr","Půdorysy / výkresy","Vlastní zaměření","Fotky stavu","Technická zpráva","Jen slovní popis"],
+  standard:["Běžný","Úsporný","Vyšší","Nadstandard"],
+  dph:["12 % (bydlení)","21 %","Neplátce DPH","Přenesená daňová povinnost"],
+  presnost:["Položkový rozpočet","Orientační odhad","Kontrola cizího rozpočtu"],
+  forma:["Tabulka v chatu","Soubor Excel","Nabídka pro zákazníka"],
+  prace:[
+    ["Příprava a bourání",["Zařízení staveniště","Ochrana stávajících konstrukcí","Bourací práce","Vybourání obkladů a dlažeb","Demontáž zařizovacích předmětů","Odvoz a likvidace suti","Výkopy / zemní práce"]],
+    ["Hrubá stavba",["Základy","Zdění","Příčky","Sádrokarton","Stropy / překlady","Statické zajištění","Lešení"]],
+    ["Povrchy",["Omítky","Stěrky","Malby","Obklady","Dlažby","Podlahy (vinyl/dřevo)","Hydroizolace","Vyrovnávací potěry"]],
+    ["Výplně a konstrukce",["Okna","Dveře","Zárubně","Parapety","Klempířské prvky","Zámečnické prvky"]],
+    ["Technika (TZB)",["Elektroinstalace","Zdravotechnika (ZTI)","Vytápění","Vzduchotechnika","Plyn","Slaboproud"]],
+    ["Obálka a střecha",["Zateplení","Fasáda","Střešní krytina","Krov","Okapy a svody"]],
+    ["Ostatní",["Kuchyňská linka","Zařizovací předměty","Úklid po stavbě","Revize a zkoušky","Projekt / statik","Inženýrská činnost"]]
+  ]
+},
+uk:{
+  copied:"Скопійовано", back:"‹ Додатки", title:"Кошторис будівництва", step:"Крок", of:"з",
+  prev:"Назад", next:"Далі", make:"Створити промпт", copy:"Скопіювати промпт",
+  titles:["Тип замовлення","Документи","Обсяг робіт","Умови будівництва","Параметри фірми","Результат","Готовий промпт"],
+  s1h:"Яке це замовлення?", s1p:"Виберіть тип і коротко опишіть, чого хоче замовник.", type:"Тип",
+  name:"Назва / позначення замовлення", namePh:"напр. Квартира 3+1, Кладно – повна реконструкція",
+  desc:"Опис від замовника", descPh:"Що замовник хоче зробити, його побажання, стандарт…",
+  s2h:"Що у вас є?", s2p:"Додайте ці матеріали в чат із Claude разом із промптом.", docs:"Документи",
+  area:"Площа підлоги (м²)", height:"Висота приміщення (м)", dims:"Відомі розміри та обсяги",
+  dimsPh:"напр. ванна 2,1 × 1,8 м, плитка до 2 м, 3 вікна 120×150…",
+  s3h:"Які роботи будуть виконуватися?", s3p:"Позначте все, що входить у замовлення. Про непозначене ШІ попередить, якщо воно може бракувати.",
+  moreWork:"Інші роботи / уточнення",
+  s4h:"Де і за яких умов?", s4p:"Від цього часто залежать додаткові витрати.",
+  loc:"Місце", locPh:"місто / район Праги", floor:"Поверх", floorPh:"напр. 4-й поверх",
+  term:"Бажаний термін", termPh:"напр. 03–05/2027", std:"Стандарт", cond:"Обставини",
+  c_lift:"Є ліфт", c_occ:"У приміщенні живуть люди", c_park:"Складне паркування / доставка",
+  c_zabor:"Потрібне зайняття громадського простору", c_old:"Старий будинок – ризик прихованих дефектів",
+  s5h:"Параметри фірми", s5p:"Збережуться в цьому браузері, наступного разу не треба вводити.",
+  rateW:"Погодинна ставка робітника (Kč)", rateC:"Погодинна ставка майстра (Kč)", overhead:"Накладні витрати (%)", profit:"Прибуток / маржа (%)",
+  matUp:"Націнка на матеріал (%)", vat:"Ставка ПДВ (DPH)", subc:"Що фірма робить сама / що субпідрядники",
+  subcPh:"напр. електрика і вентиляція – субпідрядник, решта – власні люди", supp:"Постачальники та відомі ціни матеріалів",
+  suppPh:"напр. будматеріали STAVIMEX, гіпсокартон … Kč/м²",
+  s6h:"Який результат вам потрібен?", s6p:"Від цього залежить детальність.", acc:"Точність", form:"Форма",
+  reserve:"Резерв на непередбачені роботи (%)",
+  s7h:"Промпт готовий", s7p:"Скопіюйте його, вставте в Claude і додайте документи.",
+  tip:"Порада: після створення кошторису попросіть Claude «перевір кошторис ще раз і знайди відсутні позиції та занижені ціни». Ціни завжди перевіряйте у своїх постачальників — ШІ оцінює і не знає ваших реальних закупівельних цін.",
+  typ:["Реконструкція квартири","Реконструкція ванної / туалету","Новий приватний будинок","Реконструкція приватного будинку","Прибудова / надбудова","Дах","Фасад / утеплення","Комерційне приміщення","Зовнішні роботи","Інше"],
+  podklady:["Проєктна документація","Відомість обсягів робіт","Плани / креслення","Власні заміри","Фото стану","Технічний звіт","Лише усний опис"],
+  standard:["Звичайний","Економ","Підвищений","Преміум"],
+  dph:["12 % (житло)","21 %","Не платник ПДВ","Перенесений обов'язок сплати ПДВ"],
+  presnost:["Детальний кошторис по позиціях","Орієнтовна оцінка","Перевірка чужого кошторису"],
+  forma:["Таблиця в чаті","Файл Excel","Пропозиція для клієнта"],
+  prace:[
+    ["Підготовка та демонтаж",["Облаштування будмайданчика","Захист існуючих конструкцій","Демонтажні роботи","Демонтаж плитки","Демонтаж сантехніки та обладнання","Вивезення та утилізація будсміття","Земляні роботи"]],
+    ["Каркас будівлі",["Фундаменти","Мурування","Перегородки","Гіпсокартон","Перекриття / перемички","Статичне посилення","Риштування"]],
+    ["Поверхні",["Штукатурка","Шпаклівка","Фарбування","Облицювальна плитка","Підлогова плитка","Підлоги (вініл/дерево)","Гідроізоляція","Вирівнювальна стяжка"]],
+    ["Вікна, двері, конструкції",["Вікна","Двері","Дверні коробки","Підвіконня","Покрівельно-жерстяні елементи","Слюсарні елементи"]],
+    ["Інженерні мережі",["Електромонтаж","Водопровід і каналізація","Опалення","Вентиляція","Газ","Слабкострумові мережі"]],
+    ["Оболонка та дах",["Утеплення","Фасад","Покрівля","Кроквяна система","Ринви та водостоки"]],
+    ["Інше",["Кухонний гарнітур","Сантехнічні прилади","Прибирання після робіт","Ревізії та випробування","Проєкт / статик","Інженерні послуги"]]
+  ]
+}};
 
-document.querySelectorAll(".chips").forEach(g=>g.addEventListener("click",e=>{
+let L = "cs";
+try{ L = localStorage.getItem("yey-rozpocet-lang") || (navigator.language||"").startsWith("uk") && "uk" || "cs"; }catch(e){}
+
+/* chipy se pamatují indexem, aby přepnutí jazyka nezrušilo výběr */
+const sel = {typ:new Set(),podklady:new Set(),presnost:new Set([0]),forma:new Set([0]),prace:new Set()};
+
+function chipsHTML(name,items,offset=0){
+  return items.map((t,i)=>`<button class="chip${sel[name].has(offset+i)?" on":""}" data-i="${offset+i}">${t}</button>`).join("");
+}
+function renderLang(){
+  const t=T[L];
+  document.documentElement.lang=L; document.title=t.title;
+  document.querySelectorAll("[data-t]").forEach(el=>el.textContent=t[el.dataset.t]);
+  document.querySelectorAll("[data-ph]").forEach(el=>el.placeholder=t[el.dataset.ph]);
+  document.querySelectorAll("#lang button").forEach(b=>b.classList.toggle("on",b.dataset.l===L));
+  ["typ","podklady","presnost","forma"].forEach(n=>document.querySelector(`.chips[data-name="${n}"]`).innerHTML=chipsHTML(n,t[n]));
+  let off=0;
+  document.getElementById("prace").innerHTML=t.prace.map(([g,items])=>{
+    const h=`<div class="card"><h3>${g}</h3><div class="chips" data-name="prace">${chipsHTML("prace",items,off)}</div></div>`;
+    off+=items.length; return h;
+  }).join("");
+  ["standard","dph"].forEach(id=>{
+    const s=document.getElementById(id), i=Math.max(0,s.selectedIndex);
+    s.innerHTML=t[id].map(o=>`<option>${o}</option>`).join(""); s.selectedIndex=i;
+  });
+  loadFirm(); show(false);
+}
+document.getElementById("lang").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b)return;
+  L=b.dataset.l; try{localStorage.setItem("yey-rozpocet-lang",L)}catch(e){}
+  renderLang();
+});
+document.addEventListener("click",e=>{
   const c=e.target.closest(".chip"); if(!c)return;
-  if(g.hasAttribute("data-single")) g.querySelectorAll(".chip").forEach(x=>x.classList.remove("on"));
-  c.classList.toggle("on", g.hasAttribute("data-single")?true:!c.classList.contains("on"));
-}));
+  const g=c.parentElement, n=g.dataset.name, i=+c.dataset.i;
+  if(g.hasAttribute("data-single")){sel[n].clear();sel[n].add(i);g.querySelectorAll(".chip").forEach(x=>x.classList.remove("on"));c.classList.add("on");}
+  else{sel[n].has(i)?sel[n].delete(i):sel[n].add(i);c.classList.toggle("on");}
+});
 
-/* firemní parametry v prohlížeči */
+/* firemní parametry v prohlížeči (DPH ukládána indexem kvůli jazyku) */
 const KEY="yey-rozpocet-firma";
-try{const s=JSON.parse(localStorage.getItem(KEY)||"{}");document.querySelectorAll(".firm").forEach(el=>{if(s[el.id]!=null)el.value=s[el.id]})}catch(e){}
-document.querySelectorAll(".firm").forEach(el=>el.addEventListener("input",()=>{
-  try{const s={};document.querySelectorAll(".firm").forEach(x=>s[x.id]=x.value);localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}
+function loadFirm(){try{const s=JSON.parse(localStorage.getItem(KEY)||"{}");document.querySelectorAll(".firm").forEach(el=>{
+  if(s[el.id]==null)return; if(el.tagName==="SELECT"){el.selectedIndex=+s[el.id]||0}else el.value=s[el.id]})}catch(e){}}
+document.querySelectorAll(".firm").forEach(el=>el.addEventListener(el.tagName==="SELECT"?"change":"input",()=>{
+  try{const s={};document.querySelectorAll(".firm").forEach(x=>s[x.id]=x.tagName==="SELECT"?x.selectedIndex:x.value);localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}
 }));
 
 const steps=[...document.querySelectorAll(".step")]; let cur=0;
 const $=id=>document.getElementById(id).value.trim();
-const on=name=>[...document.querySelectorAll(`.chips[data-name="${name}"] .chip.on`)].map(c=>c.textContent);
 const chk=id=>document.getElementById(id).checked;
+const pick=n=>{const flat=n==="prace"?T[L].prace.flatMap(g=>g[1]):T[L][n];return [...sel[n]].sort((a,b)=>a-b).map(i=>flat[i]).filter(Boolean)};
 
-function show(){
+function show(scroll=true){
+  const t=T[L];
   steps.forEach((s,i)=>s.classList.toggle("on",i===cur));
   document.getElementById("bar").style.width=((cur+1)/steps.length*100)+"%";
-  document.getElementById("stepinfo").textContent=`Krok ${cur+1} z ${steps.length} · ${steps[cur].dataset.title}`;
-  document.getElementById("prev").disabled=cur===0;
+  document.getElementById("stepinfo").textContent=`${t.step} ${cur+1} ${t.of} ${steps.length} · ${t.titles[cur]}`;
+  const p=document.getElementById("prev"); p.disabled=cur===0; p.textContent=t.prev;
   const last=cur===steps.length-1;
-  document.getElementById("next").textContent=last?"Zkopírovat prompt":(cur===steps.length-2?"Vytvořit prompt":"Další");
+  document.getElementById("next").textContent=last?t.copy:(cur===steps.length-2?t.make:t.next);
   if(last) document.getElementById("out").textContent=build();
-  scrollTo({top:0,behavior:"smooth"});
+  if(scroll) scrollTo({top:0,behavior:"smooth"});
 }
 document.getElementById("prev").onclick=()=>{if(cur>0){cur--;show()}};
 document.getElementById("next").onclick=()=>{
   if(cur<steps.length-1){cur++;show();return}
-  const t=document.getElementById("out").textContent;
-  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(toast).catch(()=>{
+  const txt=document.getElementById("out").textContent;
+  (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(toast).catch(()=>{
     const r=document.createRange();r.selectNodeContents(document.getElementById("out"));
     const s=getSelection();s.removeAllRanges();s.addRange(r);document.execCommand("copy");toast();
   });
@@ -224,29 +321,33 @@ document.getElementById("next").onclick=()=>{
 function toast(){const t=document.getElementById("toast");t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1600)}
 
 function line(label,val){return val?`- ${label}: ${val}\n`:""}
-function build(){
+const selText=id=>{const s=document.getElementById(id);return s.options[s.selectedIndex]?.text||""};
+
+function build(){ return L==="uk" ? buildUK() : buildCS(); }
+
+function buildCS(){
   const okol=[chk("vytah")?"výtah je k dispozici":"bez výtahu (počítat s ručním vynášením/snášením)",
     chk("obydleny")&&"objekt je obydlený (ochrana, etapizace, úklid)",chk("parkovani")&&"komplikované parkování a zásobování",
     chk("zabor")&&"nutný zábor veřejného prostranství",chk("stary")&&"starý objekt – riziko skrytých vad"].filter(Boolean);
-  const presnost=on("presnost")[0]||"Položkový rozpočet", forma=on("forma")[0]||"Tabulka v chatu";
-  const vystup = forma==="Soubor Excel" ? "Výsledek vytvoř jako soubor Excel (.xlsx) s funkčními vzorci (množství × jednotková cena, mezisoučty oddílů, rekapitulace)."
-    : forma==="Nabídka pro zákazníka" ? "Nejdřív sestav interní položkový rozpočet, pak z něj připrav srozumitelnou cenovou nabídku pro zákazníka (oddíly se součty, bez interní režie a marže jako samostatných řádků)."
-    : "Výsledek zobraz jako přehlednou tabulku přímo v chatu.";
-  return `Jsi zkušený rozpočtář stavební firmy v ČR. Připrav ${presnost.toLowerCase()} pro níže popsanou zakázku. Ceny uváděj v Kč, v cenové úrovni roku ${new Date().getFullYear()} a pro lokalitu zakázky.
+  const pi=[...sel.presnost][0]??0, fi=[...sel.forma][0]??0;
+  const vystup=["Výsledek zobraz jako přehlednou tabulku přímo v chatu.",
+    "Výsledek vytvoř jako soubor Excel (.xlsx) s funkčními vzorci (množství × jednotková cena, mezisoučty oddílů, rekapitulace).",
+    "Nejdřív sestav interní položkový rozpočet, pak z něj připrav srozumitelnou cenovou nabídku pro zákazníka (oddíly se součty, bez interní režie a marže jako samostatných řádků)."][fi];
+  return `Jsi zkušený rozpočtář stavební firmy v ČR. Připrav ${T.cs.presnost[pi].toLowerCase()} pro níže popsanou zakázku. Ceny uváděj v Kč, v cenové úrovni roku ${new Date().getFullYear()} a pro lokalitu zakázky.
 
 ## ZAKÁZKA
-${line("Typ",on("typ").join(", "))}${line("Název",$("nazev"))}${line("Popis od investora",$("popis"))}${line("Standard provedení",$("standard"))}
+${line("Typ",pick("typ").join(", "))}${line("Název",$("nazev"))}${line("Popis od investora",$("popis"))}${line("Standard provedení",selText("standard"))}
 ## PODKLADY
-${line("K dispozici",on("podklady").join(", ")||"jen slovní popis")}${line("Podlahová plocha",$("plocha")&&$("plocha")+" m²")}${line("Světlá výška",$("vyska")&&$("vyska")+" m")}${line("Známé rozměry a výměry",$("vymery"))}Přiložené podklady pečlivě projdi a výměry odvozuj z nich.
+${line("K dispozici",pick("podklady").join(", ")||"jen slovní popis")}${line("Podlahová plocha",$("plocha")&&$("plocha")+" m²")}${line("Světlá výška",$("vyska")&&$("vyska")+" m")}${line("Známé rozměry a výměry",$("vymery"))}Přiložené podklady pečlivě projdi a výměry odvozuj z nich.
 
 ## ROZSAH PRACÍ
-${on("prace").map(p=>"- "+p).join("\n")||"- (neupřesněno – navrhni podle popisu)"}
+${pick("prace").map(p=>"- "+p).join("\n")||"- (neupřesněno – navrhni podle popisu)"}
 ${$("pracejine")?"- Další: "+$("pracejine")+"\n":""}
 ## PODMÍNKY STAVBY
 ${line("Lokalita",$("lokalita"))}${line("Podlaží",$("patro"))}${line("Termín",$("termin"))}${okol.map(o=>"- "+o).join("\n")}
 
 ## PARAMETRY FIRMY
-${line("Hodinová sazba dělník",$("sazbaD")&&$("sazbaD")+" Kč/h")}${line("Hodinová sazba řemeslník",$("sazbaR")&&$("sazbaR")+" Kč/h")}${line("Režie",$("rezie")&&$("rezie")+" %")}${line("Zisk",$("marze")&&$("marze")+" %")}${line("Přirážka na materiál",$("matPrir")&&$("matPrir")+" %")}${line("DPH",$("dph"))}${line("Vlastní práce / subdodávky",$("subdod"))}${line("Dodavatelé a známé ceny",$("dodavatele"))}${line("Rezerva na nepředvídané práce",$("rezerva")&&$("rezerva")+" %")}
+${line("Hodinová sazba dělník",$("sazbaD")&&$("sazbaD")+" Kč/h")}${line("Hodinová sazba řemeslník",$("sazbaR")&&$("sazbaR")+" Kč/h")}${line("Režie",$("rezie")&&$("rezie")+" %")}${line("Zisk",$("marze")&&$("marze")+" %")}${line("Přirážka na materiál",$("matPrir")&&$("matPrir")+" %")}${line("DPH",selText("dph"))}${line("Vlastní práce / subdodávky",$("subdod"))}${line("Dodavatelé a známé ceny",$("dodavatele"))}${line("Rezerva na nepředvídané práce",$("rezerva")&&$("rezerva")+" %")}
 ## POŽADAVKY NA ROZPOČET
 1. Členění podle oddílů stavebního rozpočtu (HSV / PSV / M / VRN), u každé položky: číslo, popis, MJ, množství, jednotková cena materiál, jednotková cena práce, cena celkem.
 2. U KAŽDÉ položky označ původ množství: [Z] změřeno z podkladů, [O] odhad. U odhadů napiš krátce, z čeho vychází.
@@ -258,7 +359,43 @@ ${line("Hodinová sazba dělník",$("sazbaD")&&$("sazbaD")+" Kč/h")}${line("Hod
 
 Než začneš počítat, pokud ti v podkladech chybí něco zásadního, nejdřív se mě zeptej (max. 5 otázek).`;
 }
-show();
+
+function buildUK(){
+  const okol=[chk("vytah")?"є ліфт":"без ліфта (врахувати ручне занесення/винесення)",
+    chk("obydleny")&&"у приміщенні живуть люди (захист, поетапність, прибирання)",chk("parkovani")&&"складне паркування та доставка",
+    chk("zabor")&&"потрібне зайняття громадського простору",chk("stary")&&"старий будинок – ризик прихованих дефектів"].filter(Boolean);
+  const pi=[...sel.presnost][0]??0, fi=[...sel.forma][0]??0;
+  const vystup=["Результат покажи як наочну таблицю прямо в чаті.",
+    "Результат створи як файл Excel (.xlsx) з робочими формулами (кількість × ціна за одиницю, проміжні суми розділів, підсумок).",
+    "Спочатку склади внутрішній детальний кошторис, потім на його основі підготуй зрозумілу цінову пропозицію для клієнта (розділи з сумами, без окремих рядків внутрішніх накладних витрат і маржі)."][fi];
+  return `Ти досвідчений кошторисник будівельної фірми в Чехії. Підготуй: ${T.uk.presnost[pi].toLowerCase()} для описаного нижче замовлення. Ціни вказуй у чеських кронах (Kč), на рівні цін ${new Date().getFullYear()} року та для місця виконання робіт. Відповідай українською мовою.
+
+## ЗАМОВЛЕННЯ
+${line("Тип",pick("typ").join(", "))}${line("Назва",$("nazev"))}${line("Опис від замовника",$("popis"))}${line("Стандарт виконання",selText("standard"))}
+## ДОКУМЕНТИ
+${line("Є в наявності",pick("podklady").join(", ")||"лише усний опис")}${line("Площа підлоги",$("plocha")&&$("plocha")+" м²")}${line("Висота приміщення",$("vyska")&&$("vyska")+" м")}${line("Відомі розміри та обсяги",$("vymery"))}Уважно переглянь додані документи та визначай обсяги на їх основі.
+
+## ОБСЯГ РОБІТ
+${pick("prace").map(p=>"- "+p).join("\n")||"- (не уточнено – запропонуй на основі опису)"}
+${$("pracejine")?"- Інше: "+$("pracejine")+"\n":""}
+## УМОВИ БУДІВНИЦТВА
+${line("Місце",$("lokalita"))}${line("Поверх",$("patro"))}${line("Термін",$("termin"))}${okol.map(o=>"- "+o).join("\n")}
+
+## ПАРАМЕТРИ ФІРМИ
+${line("Погодинна ставка робітника",$("sazbaD")&&$("sazbaD")+" Kč/год")}${line("Погодинна ставка майстра",$("sazbaR")&&$("sazbaR")+" Kč/год")}${line("Накладні витрати",$("rezie")&&$("rezie")+" %")}${line("Прибуток",$("marze")&&$("marze")+" %")}${line("Націнка на матеріал",$("matPrir")&&$("matPrir")+" %")}${line("ПДВ (DPH)",selText("dph"))}${line("Власні роботи / субпідряд",$("subdod"))}${line("Постачальники та відомі ціни",$("dodavatele"))}${line("Резерв на непередбачені роботи",$("rezerva")&&$("rezerva")+" %")}
+## ВИМОГИ ДО КОШТОРИСУ
+1. Поділ на розділи за чеською практикою (HSV – основні будівельні роботи / PSV – спеціальні та оздоблювальні роботи / M – монтажні роботи / VRN – додаткові витрати будівництва), для кожної позиції: номер, опис, од. вим., кількість, ціна за одиницю матеріал, ціна за одиницю робота, разом.
+2. Для КОЖНОЇ позиції познач походження кількості: [З] заміряно з документів, [О] оцінка. Для оцінок коротко напиши, на чому вони базуються.
+3. Не забудь про додаткові витрати, які часто пропускають: облаштування будмайданчика, переміщення матеріалів, винесення і вивезення будсміття, плата за полігон, риштування, захист конструкцій, прибирання, ревізії, транспорт, втрати матеріалу.
+4. Якщо в обсязі робіт чогось логічно бракує (напр. демонтаж без вивезення сміття, плитка без гідроізоляції), попередь про це і запропонуй доповнення окремими позиціями.
+5. Не вигадуй ціни з фальшивою впевненістю — де не впевнений, вкажи діапазон і поясни.
+6. В кінці: підсумок (матеріал, робота, VRN, накладні, прибуток, резерв, разом без ПДВ, ПДВ, разом з ПДВ) і список «Чого бракує в документах / що перевірити» — питання, які я маю поставити замовнику або постачальникам.
+7. ${vystup}
+
+Перш ніж почнеш рахувати, якщо в документах бракує чогось суттєвого, спочатку запитай мене (макс. 5 питань).`;
+}
+
+renderLang();
 </script>
 </body>
 </html>
