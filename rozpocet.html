@@ -143,6 +143,7 @@ textarea{min-height:90px;resize:vertical}
     <h2 data-t="s6h"></h2><p class="sub" data-t="s6p"></p>
     <div class="card"><h3 data-t="acc"></h3><div class="chips" data-name="presnost" data-single></div></div>
     <div class="card"><h3 data-t="form"></h3><div class="chips" data-name="forma" data-single></div></div>
+    <div class="card"><h3 data-t="outLang"></h3><div class="chips" data-name="jazyk" data-single></div><p class="hint" data-t="outLangHint"></p></div>
     <div class="card"><div class="field"><label data-t="reserve"></label><input type="number" id="rezerva" value="5"></div></div>
   </section>
 
@@ -193,6 +194,7 @@ cs:{
   dph:["12 % (bydlení)","21 %","Neplátce DPH","Přenesená daňová povinnost"],
   presnost:["Položkový rozpočet","Orientační odhad","Kontrola cizího rozpočtu"],
   forma:["Tabulka v chatu","Soubor Excel","Nabídka pro zákazníka"],
+  jazyk:["Čeština","Ukrajinština"], outLang:"Jazyk rozpočtu", outLangHint:"V jakém jazyce bude samotný rozpočet. Vysvětlivky a otázky dostanete v jazyce stránky.",
   prace:[
     ["Příprava a bourání",["Zařízení staveniště","Ochrana stávajících konstrukcí","Bourací práce","Vybourání obkladů a dlažeb","Demontáž zařizovacích předmětů","Odvoz a likvidace suti","Výkopy / zemní práce"]],
     ["Hrubá stavba",["Základy","Zdění","Příčky","Sádrokarton","Stropy / překlady","Statické zajištění","Lešení"]],
@@ -235,6 +237,7 @@ uk:{
   dph:["12 % (житло)","21 %","Не платник ПДВ","Перенесений обов'язок сплати ПДВ"],
   presnost:["Детальний кошторис по позиціях","Орієнтовна оцінка","Перевірка чужого кошторису"],
   forma:["Таблиця в чаті","Файл Excel","Пропозиція для клієнта"],
+  jazyk:["Чеська","Українська"], outLang:"Мова кошторису", outLangHint:"Якою мовою буде сам кошторис. Пояснення та питання ви отримаєте мовою сторінки.",
   prace:[
     ["Підготовка та демонтаж",["Облаштування будмайданчика","Захист існуючих конструкцій","Демонтажні роботи","Демонтаж плитки","Демонтаж сантехніки та обладнання","Вивезення та утилізація будсміття","Земляні роботи"]],
     ["Каркас будівлі",["Фундаменти","Мурування","Перегородки","Гіпсокартон","Перекриття / перемички","Статичне посилення","Риштування"]],
@@ -250,7 +253,7 @@ let L = "cs";
 try{ L = localStorage.getItem("yey-rozpocet-lang") || (navigator.language||"").startsWith("uk") && "uk" || "cs"; }catch(e){}
 
 /* chipy se pamatují indexem, aby přepnutí jazyka nezrušilo výběr */
-const sel = {typ:new Set(),podklady:new Set(),presnost:new Set([0]),forma:new Set([0]),prace:new Set()};
+const sel = {typ:new Set(),podklady:new Set(),presnost:new Set([0]),forma:new Set([0]),jazyk:new Set([0]),prace:new Set()};
 
 function chipsHTML(name,items,offset=0){
   return items.map((t,i)=>`<button class="chip${sel[name].has(offset+i)?" on":""}" data-i="${offset+i}">${t}</button>`).join("");
@@ -261,7 +264,7 @@ function renderLang(){
   document.querySelectorAll("[data-t]").forEach(el=>el.textContent=t[el.dataset.t]);
   document.querySelectorAll("[data-ph]").forEach(el=>el.placeholder=t[el.dataset.ph]);
   document.querySelectorAll("#lang button").forEach(b=>b.classList.toggle("on",b.dataset.l===L));
-  ["typ","podklady","presnost","forma"].forEach(n=>document.querySelector(`.chips[data-name="${n}"]`).innerHTML=chipsHTML(n,t[n]));
+  ["typ","podklady","presnost","forma","jazyk"].forEach(n=>document.querySelector(`.chips[data-name="${n}"]`).innerHTML=chipsHTML(n,t[n]));
   let off=0;
   document.getElementById("prace").innerHTML=t.prace.map(([g,items])=>{
     const h=`<div class="card"><h3>${g}</h3><div class="chips" data-name="prace">${chipsHTML("prace",items,off)}</div></div>`;
@@ -323,6 +326,11 @@ function toast(){const t=document.getElementById("toast");t.classList.add("show"
 function line(label,val){return val?`- ${label}: ${val}\n`:""}
 const selText=id=>{const s=document.getElementById(id);return s.options[s.selectedIndex]?.text||""};
 
+const outIdx=()=>[...sel.jazyk][0]??0;
+function outLangCS(){return outIdx()===1?" Samotný rozpočet (tabulku, názvy položek, rekapitulaci) napiš v ukrajinštině; vysvětlivky a otázky na mě piš česky.":""}
+function outLangUK(){return outIdx()===0
+  ?" Сам кошторис (таблицю, назви позицій, підсумок) склади ЧЕСЬКОЮ мовою — він призначений для чеського замовника. Пояснення та питання до мене пиши українською."
+  :" Відповідай українською мовою."}
 function build(){ return L==="uk" ? buildUK() : buildCS(); }
 
 function buildCS(){
@@ -333,7 +341,7 @@ function buildCS(){
   const vystup=["Výsledek zobraz jako přehlednou tabulku přímo v chatu.",
     "Výsledek vytvoř jako soubor Excel (.xlsx) s funkčními vzorci (množství × jednotková cena, mezisoučty oddílů, rekapitulace).",
     "Nejdřív sestav interní položkový rozpočet, pak z něj připrav srozumitelnou cenovou nabídku pro zákazníka (oddíly se součty, bez interní režie a marže jako samostatných řádků)."][fi];
-  return `Jsi zkušený rozpočtář stavební firmy v ČR. Připrav ${T.cs.presnost[pi].toLowerCase()} pro níže popsanou zakázku. Ceny uváděj v Kč, v cenové úrovni roku ${new Date().getFullYear()} a pro lokalitu zakázky.
+  return `Jsi zkušený rozpočtář stavební firmy v ČR. Připrav ${T.cs.presnost[pi].toLowerCase()} pro níže popsanou zakázku. Ceny uváděj v Kč, v cenové úrovni roku ${new Date().getFullYear()} a pro lokalitu zakázky.${outLangCS()}
 
 ## ZAKÁZKA
 ${line("Typ",pick("typ").join(", "))}${line("Název",$("nazev"))}${line("Popis od investora",$("popis"))}${line("Standard provedení",selText("standard"))}
@@ -368,7 +376,7 @@ function buildUK(){
   const vystup=["Результат покажи як наочну таблицю прямо в чаті.",
     "Результат створи як файл Excel (.xlsx) з робочими формулами (кількість × ціна за одиницю, проміжні суми розділів, підсумок).",
     "Спочатку склади внутрішній детальний кошторис, потім на його основі підготуй зрозумілу цінову пропозицію для клієнта (розділи з сумами, без окремих рядків внутрішніх накладних витрат і маржі)."][fi];
-  return `Ти досвідчений кошторисник будівельної фірми в Чехії. Підготуй: ${T.uk.presnost[pi].toLowerCase()} для описаного нижче замовлення. Ціни вказуй у чеських кронах (Kč), на рівні цін ${new Date().getFullYear()} року та для місця виконання робіт. Відповідай українською мовою.
+  return `Ти досвідчений кошторисник будівельної фірми в Чехії. Підготуй: ${T.uk.presnost[pi].toLowerCase()} для описаного нижче замовлення. Ціни вказуй у чеських кронах (Kč), на рівні цін ${new Date().getFullYear()} року та для місця виконання робіт.${outLangUK()}
 
 ## ЗАМОВЛЕННЯ
 ${line("Тип",pick("typ").join(", "))}${line("Назва",$("nazev"))}${line("Опис від замовника",$("popis"))}${line("Стандарт виконання",selText("standard"))}
