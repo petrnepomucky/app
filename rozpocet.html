@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0c">
+<title>Rozpočet stavby</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0b0c;--card:#161618;--card2:#1e1e21;--line:rgba(255,255,255,.09);--text:#f4f4f5;--muted:#8e8e93;--gold:#f5c518;--gold2:#d4a017}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(800px 500px at 100% -10%,rgba(245,197,24,.14),transparent 60%),linear-gradient(180deg,#0e0e10,#070708)}
+.wrap{max-width:680px;margin:0 auto;padding:max(14px,env(safe-area-inset-top)) 16px 120px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.back{color:var(--gold);text-decoration:none;font-weight:600;display:flex;align-items:center;gap:2px}
+.top h1{flex:1;text-align:center;font-size:17px;font-weight:700;margin-right:52px}
+.tape{height:6px;border-radius:2px;background:repeating-linear-gradient(90deg,#1a1a1a 0 1px,transparent 1px 8px),linear-gradient(var(--gold),var(--gold2));opacity:.9}
+.prog{height:4px;background:#222;border-radius:4px;margin:14px 0 6px;overflow:hidden}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,var(--gold2),var(--gold));width:0;transition:width .3s}
+.stepinfo{color:var(--muted);font-size:13px;margin-bottom:18px}
+h2{font-size:28px;font-weight:800;letter-spacing:-.6px;margin-bottom:6px}
+.sub{color:var(--muted);margin-bottom:20px;line-height:1.45}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.card h3{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--card2);color:var(--text);border-radius:999px;padding:9px 14px;font:inherit;font-size:14px;cursor:pointer;transition:.15s}
+.chip.on{background:var(--gold);color:#111;border-color:var(--gold);font-weight:600}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.field label{font-size:13px;color:var(--muted)}
+input[type=text],input[type=number],textarea,select{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:11px 12px;font:inherit;font-size:16px;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--gold)}
+textarea{min-height:90px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.toggle{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.toggle:last-child{border:0}
+.sw{position:relative;width:51px;height:31px;flex:none}
+.sw input{opacity:0;width:0;height:0}
+.sw span{position:absolute;inset:0;background:#39393d;border-radius:31px;transition:.2s;cursor:pointer}
+.sw span::before{content:"";position:absolute;width:27px;height:27px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s}
+.sw input:checked+span{background:var(--gold)}
+.sw input:checked+span::before{transform:translateX(20px)}
+.nav{position:fixed;left:0;right:0;bottom:0;padding:12px 16px max(12px,env(safe-area-inset-bottom));background:rgba(11,11,12,.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--line)}
+.nav .in{max-width:680px;margin:0 auto;display:flex;gap:10px}
+.btn{flex:1;border:0;border-radius:14px;padding:15px;font:inherit;font-weight:700;font-size:16px;cursor:pointer}
+.btn.pri{background:var(--gold);color:#111}
+.btn.sec{background:#26262a;color:var(--text)}
+.btn:disabled{opacity:.35}
+.out{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.5;max-height:52vh;overflow:auto;background:#0f0f11}
+.hint{font-size:13px;color:var(--muted);line-height:1.45;margin-top:8px}
+.toast{position:fixed;left:50%;top:20px;transform:translateX(-50%) translateY(-80px);background:var(--gold);color:#111;font-weight:700;padding:10px 18px;border-radius:999px;transition:.3s;z-index:9}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.step{display:none}.step.on{display:block;animation:in .25s ease}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(max-width:420px){.row{grid-template-columns:1fr}h2{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="toast" id="toast">Zkopírováno</div>
+<div class="wrap">
+  <div class="top"><a class="back" href="index.html">‹ Aplikace</a><h1>Rozpočet stavby</h1></div>
+  <div class="tape"></div>
+  <div class="prog"><i id="bar"></i></div>
+  <div class="stepinfo" id="stepinfo"></div>
+
+  <!-- 1 -->
+  <section class="step" data-title="Typ zakázky">
+    <h2>O jakou zakázku jde?</h2><p class="sub">Vyberte typ a stručně popište, co investor chce.</p>
+    <div class="card"><h3>Typ</h3><div class="chips" data-name="typ" data-single>
+      <button class="chip">Rekonstrukce bytu</button><button class="chip">Rekonstrukce koupelny / WC</button>
+      <button class="chip">Novostavba RD</button><button class="chip">Rekonstrukce RD</button>
+      <button class="chip">Přístavba / nástavba</button><button class="chip">Střecha</button>
+      <button class="chip">Fasáda / zateplení</button><button class="chip">Komerční prostor</button>
+      <button class="chip">Venkovní úpravy</button><button class="chip">Jiné</button></div></div>
+    <div class="card">
+      <div class="field"><label>Název / označení zakázky</label><input type="text" id="nazev" placeholder="např. Byt 3+1, Kladno – kompletní rekonstrukce"></div>
+      <div class="field"><label>Popis od investora</label><textarea id="popis" placeholder="Co chce investor udělat, jeho představy, standard…"></textarea></div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="step" data-title="Podklady">
+    <h2>Co máte k dispozici?</h2><p class="sub">Přiložte je v chatu s Claudem spolu s promptem.</p>
+    <div class="card"><h3>Podklady</h3><div class="chips" data-name="podklady">
+      <button class="chip">Projektová dokumentace</button><button class="chip">Výkaz výměr</button>
+      <button class="chip">Půdorysy / výkresy</button><button class="chip">Vlastní zaměření</button>
+      <button class="chip">Fotky stavu</button><button class="chip">Technická zpráva</button>
+      <button class="chip">Jen slovní popis</button></div></div>
+    <div class="card">
+      <div class="row">
+        <div class="field"><label>Podlahová plocha (m²)</label><input type="number" id="plocha" inputmode="decimal"></div>
+        <div class="field"><label>Světlá výška (m)</label><input type="number" id="vyska" inputmode="decimal" step="0.01"></div>
+      </div>
+      <div class="field"><label>Známé rozměry a výměry</label><textarea id="vymery" placeholder="např. koupelna 2,1 × 1,8 m, obklad do 2 m, 3 okna 120×150…"></textarea></div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="step" data-title="Rozsah prací">
+    <h2>Co všechno se bude dělat?</h2><p class="sub">Zaškrtněte vše, co do zakázky patří. Na nezaškrtnuté AI upozorní, pokud by mohly chybět.</p>
+    <div id="prace"></div>
+    <div class="card"><div class="field"><label>Další práce / upřesnění</label><textarea id="pracejine"></textarea></div></div>
+  </section>
+
+  <!-- 4 -->
+  <section class="step" data-title="Podmínky stavby">
+    <h2>Kde a za jakých podmínek?</h2><p class="sub">Tohle často rozhoduje o vedlejších nákladech.</p>
+    <div class="card">
+      <div class="row">
+        <div class="field"><label>Lokalita</label><input type="text" id="lokalita" placeholder="obec / část Prahy"></div>
+        <div class="field"><label>Podlaží</label><input type="text" id="patro" placeholder="např. 4. NP"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Požadovaný termín</label><input type="text" id="termin" placeholder="např. 03–05/2027"></div>
+        <div class="field"><label>Standard</label><select id="standard"><option>Běžný</option><option>Úsporný</option><option>Vyšší</option><option>Nadstandard</option></select></div>
+      </div>
+    </div>
+    <div class="card"><h3>Okolnosti</h3>
+      <div class="toggle"><span>Výtah k dispozici</span><label class="sw"><input type="checkbox" id="vytah"><span></span></label></div>
+      <div class="toggle"><span>Objekt je obydlený</span><label class="sw"><input type="checkbox" id="obydleny"><span></span></label></div>
+      <div class="toggle"><span>Komplikované parkování / zásobování</span><label class="sw"><input type="checkbox" id="parkovani"><span></span></label></div>
+      <div class="toggle"><span>Nutný zábor veřejného prostranství</span><label class="sw"><input type="checkbox" id="zabor"><span></span></label></div>
+      <div class="toggle"><span>Starý objekt – riziko skrytých vad</span><label class="sw"><input type="checkbox" id="stary"><span></span></label></div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="step" data-title="Firemní parametry">
+    <h2>Parametry firmy</h2><p class="sub">Uloží se v tomto prohlížeči, příště je nemusíte zadávat.</p>
+    <div class="card">
+      <div class="row">
+        <div class="field"><label>Hodinová sazba dělník (Kč)</label><input type="number" class="firm" id="sazbaD"></div>
+        <div class="field"><label>Hodinová sazba řemeslník (Kč)</label><input type="number" class="firm" id="sazbaR"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Režie (%)</label><input type="number" class="firm" id="rezie"></div>
+        <div class="field"><label>Zisk / marže (%)</label><input type="number" class="firm" id="marze"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Přirážka na materiál (%)</label><input type="number" class="firm" id="matPrir"></div>
+        <div class="field"><label>Sazba DPH</label><select class="firm" id="dph"><option>12 % (bydlení)</option><option>21 %</option><option>Neplátce DPH</option><option>Přenesená daňová povinnost</option></select></div>
+      </div>
+      <div class="field"><label>Co dělá firma sama / co subdodavatelsky</label><textarea class="firm" id="subdod" placeholder="např. elektro a VZT subdodavatel, zbytek vlastními lidmi"></textarea></div>
+      <div class="field"><label>Dodavatelé a známé ceny materiálu</label><textarea class="firm" id="dodavatele" placeholder="např. stavebniny STAVIMEX, sádrokarton … Kč/m²"></textarea></div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="step" data-title="Výstup">
+    <h2>Jaký výsledek chcete?</h2><p class="sub">Podle toho AI zvolí podrobnost.</p>
+    <div class="card"><h3>Přesnost</h3><div class="chips" data-name="presnost" data-single>
+      <button class="chip on">Položkový rozpočet</button><button class="chip">Orientační odhad</button><button class="chip">Kontrola cizího rozpočtu</button></div></div>
+    <div class="card"><h3>Forma</h3><div class="chips" data-name="forma" data-single>
+      <button class="chip on">Tabulka v chatu</button><button class="chip">Soubor Excel</button><button class="chip">Nabídka pro zákazníka</button></div></div>
+    <div class="card">
+      <div class="field"><label>Rezerva na nepředvídané práce (%)</label><input type="number" id="rezerva" value="5"></div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="step" data-title="Hotový prompt">
+    <h2>Prompt je připraven</h2><p class="sub">Zkopírujte ho, vložte do Clauda a přiložte podklady.</p>
+    <div class="card out" id="out"></div>
+    <p class="hint">Tip: po vygenerování rozpočtu požádejte Clauda „projdi rozpočet znovu a hledej chybějící položky a podhodnocené ceny“. Ceny vždy ověřte u svých dodavatelů — AI odhaduje, nezná vaše skutečné nákupní ceny.</p>
+  </section>
+</div>
+
+<nav class="nav"><div class="in">
+  <button class="btn sec" id="prev">Zpět</button>
+  <button class="btn pri" id="next">Další</button>
+</div></nav>
+
+<script>
+const PRACE = {
+  "Příprava a bourání":["Zařízení staveniště","Ochrana stávajících konstrukcí","Bourací práce","Vybourání obkladů a dlažeb","Demontáž zařizovacích předmětů","Odvoz a likvidace suti","Výkopy / zemní práce"],
+  "Hrubá stavba":["Základy","Zdění","Příčky","Sádrokarton","Stropy / překlady","Statické zajištění","Lešení"],
+  "Povrchy":["Omítky","Stěrky","Malby","Obklady","Dlažby","Podlahy (vinyl/dřevo)","Hydroizolace","Vyrovnávací potěry"],
+  "Výplně a konstrukce":["Okna","Dveře","Zárubně","Parapety","Klempířské prvky","Zámečnické prvky"],
+  "Technika (TZB)":["Elektroinstalace","Zdravotechnika (ZTI)","Vytápění","Vzduchotechnika","Plyn","Slaboproud"],
+  "Obálka a střecha":["Zateplení","Fasáda","Střešní krytina","Krov","Okapy a svody"],
+  "Ostatní":["Kuchyňská linka","Zařizovací předměty","Úklid po stavbě","Revize a zkoušky","Projekt / statik","Inženýrská činnost"]
+};
+document.getElementById("prace").innerHTML=Object.entries(PRACE).map(([k,v])=>
+  `<div class="card"><h3>${k}</h3><div class="chips" data-name="prace">${v.map(p=>`<button class="chip">${p}</button>`).join("")}</div></div>`).join("");
+
+document.querySelectorAll(".chips").forEach(g=>g.addEventListener("click",e=>{
+  const c=e.target.closest(".chip"); if(!c)return;
+  if(g.hasAttribute("data-single")) g.querySelectorAll(".chip").forEach(x=>x.classList.remove("on"));
+  c.classList.toggle("on", g.hasAttribute("data-single")?true:!c.classList.contains("on"));
+}));
+
+/* firemní parametry v prohlížeči */
+const KEY="yey-rozpocet-firma";
+try{const s=JSON.parse(localStorage.getItem(KEY)||"{}");document.querySelectorAll(".firm").forEach(el=>{if(s[el.id]!=null)el.value=s[el.id]})}catch(e){}
+document.querySelectorAll(".firm").forEach(el=>el.addEventListener("input",()=>{
+  try{const s={};document.querySelectorAll(".firm").forEach(x=>s[x.id]=x.value);localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}
+}));
+
+const steps=[...document.querySelectorAll(".step")]; let cur=0;
+const $=id=>document.getElementById(id).value.trim();
+const on=name=>[...document.querySelectorAll(`.chips[data-name="${name}"] .chip.on`)].map(c=>c.textContent);
+const chk=id=>document.getElementById(id).checked;
+
+function show(){
+  steps.forEach((s,i)=>s.classList.toggle("on",i===cur));
+  document.getElementById("bar").style.width=((cur+1)/steps.length*100)+"%";
+  document.getElementById("stepinfo").textContent=`Krok ${cur+1} z ${steps.length} · ${steps[cur].dataset.title}`;
+  document.getElementById("prev").disabled=cur===0;
+  const last=cur===steps.length-1;
+  document.getElementById("next").textContent=last?"Zkopírovat prompt":(cur===steps.length-2?"Vytvořit prompt":"Další");
+  if(last) document.getElementById("out").textContent=build();
+  scrollTo({top:0,behavior:"smooth"});
+}
+document.getElementById("prev").onclick=()=>{if(cur>0){cur--;show()}};
+document.getElementById("next").onclick=()=>{
+  if(cur<steps.length-1){cur++;show();return}
+  const t=document.getElementById("out").textContent;
+  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(toast).catch(()=>{
+    const r=document.createRange();r.selectNodeContents(document.getElementById("out"));
+    const s=getSelection();s.removeAllRanges();s.addRange(r);document.execCommand("copy");toast();
+  });
+};
+function toast(){const t=document.getElementById("toast");t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1600)}
+
+function line(label,val){return val?`- ${label}: ${val}\n`:""}
+function build(){
+  const okol=[chk("vytah")?"výtah je k dispozici":"bez výtahu (počítat s ručním vynášením/snášením)",
+    chk("obydleny")&&"objekt je obydlený (ochrana, etapizace, úklid)",chk("parkovani")&&"komplikované parkování a zásobování",
+    chk("zabor")&&"nutný zábor veřejného prostranství",chk("stary")&&"starý objekt – riziko skrytých vad"].filter(Boolean);
+  const presnost=on("presnost")[0]||"Položkový rozpočet", forma=on("forma")[0]||"Tabulka v chatu";
+  const vystup = forma==="Soubor Excel" ? "Výsledek vytvoř jako soubor Excel (.xlsx) s funkčními vzorci (množství × jednotková cena, mezisoučty oddílů, rekapitulace)."
+    : forma==="Nabídka pro zákazníka" ? "Nejdřív sestav interní položkový rozpočet, pak z něj připrav srozumitelnou cenovou nabídku pro zákazníka (oddíly se součty, bez interní režie a marže jako samostatných řádků)."
+    : "Výsledek zobraz jako přehlednou tabulku přímo v chatu.";
+  return `Jsi zkušený rozpočtář stavební firmy v ČR. Připrav ${presnost.toLowerCase()} pro níže popsanou zakázku. Ceny uváděj v Kč, v cenové úrovni roku ${new Date().getFullYear()} a pro lokalitu zakázky.
+
+## ZAKÁZKA
+${line("Typ",on("typ").join(", "))}${line("Název",$("nazev"))}${line("Popis od investora",$("popis"))}${line("Standard provedení",$("standard"))}
+## PODKLADY
+${line("K dispozici",on("podklady").join(", ")||"jen slovní popis")}${line("Podlahová plocha",$("plocha")&&$("plocha")+" m²")}${line("Světlá výška",$("vyska")&&$("vyska")+" m")}${line("Známé rozměry a výměry",$("vymery"))}Přiložené podklady pečlivě projdi a výměry odvozuj z nich.
+
+## ROZSAH PRACÍ
+${on("prace").map(p=>"- "+p).join("\n")||"- (neupřesněno – navrhni podle popisu)"}
+${$("pracejine")?"- Další: "+$("pracejine")+"\n":""}
+## PODMÍNKY STAVBY
+${line("Lokalita",$("lokalita"))}${line("Podlaží",$("patro"))}${line("Termín",$("termin"))}${okol.map(o=>"- "+o).join("\n")}
+
+## PARAMETRY FIRMY
+${line("Hodinová sazba dělník",$("sazbaD")&&$("sazbaD")+" Kč/h")}${line("Hodinová sazba řemeslník",$("sazbaR")&&$("sazbaR")+" Kč/h")}${line("Režie",$("rezie")&&$("rezie")+" %")}${line("Zisk",$("marze")&&$("marze")+" %")}${line("Přirážka na materiál",$("matPrir")&&$("matPrir")+" %")}${line("DPH",$("dph"))}${line("Vlastní práce / subdodávky",$("subdod"))}${line("Dodavatelé a známé ceny",$("dodavatele"))}${line("Rezerva na nepředvídané práce",$("rezerva")&&$("rezerva")+" %")}
+## POŽADAVKY NA ROZPOČET
+1. Členění podle oddílů stavebního rozpočtu (HSV / PSV / M / VRN), u každé položky: číslo, popis, MJ, množství, jednotková cena materiál, jednotková cena práce, cena celkem.
+2. U KAŽDÉ položky označ původ množství: [Z] změřeno z podkladů, [O] odhad. U odhadů napiš krátce, z čeho vychází.
+3. Nezapomeň na vedlejší a často opomíjené náklady: zařízení staveniště, přesun hmot, vynášení a odvoz suti, poplatky za skládku, lešení, ochranu konstrukcí, úklid, revize, dopravu, ztratné materiálu.
+4. Pokud z rozsahu prací něco logicky chybí (např. bourání bez odvozu suti, obklad bez hydroizolace), upozorni na to a navrhni doplnění jako samostatné položky.
+5. Ceny nevymýšlej s falešnou jistotou — kde si nejsi jistý, uveď rozpětí a vysvětli.
+6. Na konci: rekapitulace (materiál, práce, VRN, režie, zisk, rezerva, celkem bez DPH, DPH, celkem s DPH) a seznam „Co chybí v podkladech / co ověřit“ — otázky, které mám položit investorovi nebo dodavatelům.
+7. ${vystup}
+
+Než začneš počítat, pokud ti v podkladech chybí něco zásadního, nejdřív se mě zeptej (max. 5 otázek).`;
+}
+show();
+</script>
+</body>
+</html>

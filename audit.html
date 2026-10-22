@@ -1,0 +1,1396 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Audit faktur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
+<style>
+/* Layout: lišta s projektem, záložky, pracovní plocha; detail dokladu jako boční panel s náhledem originálu */
+:root{
+  --bg:#f2f6f5; --panel:#fbfcfb; --ink:#13282a; --muted:#587072; --line:#d4dedc;
+  --petrol:#0e5560; --petrol-soft:#dbeaeb; --gold:#a8822a; --gold-soft:#f3e9cf;
+  --ok:#2c7848; --warn:#9c640a; --bad:#a3352b; --on-petrol:#f7fbfa;
+  --f-display:"Fraunces",Georgia,serif; --f-body:"IBM Plex Sans",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c191b; --panel:#12252a; --ink:#e5eeec; --muted:#91a7a7; --line:#24403f;
+  --petrol:#5db3be; --petrol-soft:#163a3f; --gold:#d6b25c; --gold-soft:#3a3120; --ok:#6cc08b; --warn:#e0a548; --bad:#e2766b; --on-petrol:#0c191b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c191b; --panel:#12252a; --ink:#e5eeec; --muted:#91a7a7; --line:#24403f;
+  --petrol:#5db3be; --petrol-soft:#163a3f; --gold:#d6b25c; --gold-soft:#3a3120; --ok:#6cc08b; --warn:#e0a548; --bad:#e2766b; --on-petrol:#0c191b; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--f-body)}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{background:linear-gradient(100deg,var(--petrol-soft),var(--gold-soft));border-bottom:1px solid var(--line);padding-block:14px;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center}
+h1{font:650 22px/1.1 var(--f-display);margin:0;color:var(--petrol)}
+h1 small{display:block;font:500 11px var(--f-body);color:var(--gold);text-transform:uppercase;letter-spacing:1.4px;margin-top:4px}
+h2{font:600 17px var(--f-display);margin:0 0 10px;color:var(--petrol);text-wrap:balance}
+h3{font:600 12px var(--f-body);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:16px 0 8px}
+.proj{display:flex;gap:8px;align-items:center;margin-left:auto;flex-wrap:wrap}
+nav{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+nav button{border:0;background:none;padding:12px 14px;font:500 14px var(--f-body);color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+nav button.on{color:var(--petrol);border-color:var(--gold)}
+nav .badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font-size:11px;margin-left:4px}
+main{padding-block:20px;max-width:1600px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;min-width:0}
+.stats{display:flex;flex-wrap:wrap;gap:12px 28px;margin-bottom:16px}
+.stat b{display:block;font:600 21px var(--f-display);color:var(--petrol);font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.stat.bad b{color:var(--bad)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--petrol);background:var(--petrol);color:var(--on-petrol);padding:7px 13px;border-radius:4px;font:500 13px var(--f-body);cursor:pointer;text-decoration:none}
+.btn.ghost{background:transparent;color:var(--petrol)}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#1b1608}
+.btn.sm{padding:4px 9px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:default}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 9px;max-width:100%}
+textarea{font-family:var(--f-mono);font-size:12.5px;width:100%}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.field{display:grid;gap:3px;margin-bottom:9px;min-width:0}
+.field label{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.field input.chg{border-color:var(--gold);background:var(--gold-soft)}
+.drop{border:2px dashed var(--line);border-radius:8px;padding:22px;text-align:center;color:var(--muted);transition:background .2s,border-color .2s}
+.drop.over{border-color:var(--gold);background:var(--gold-soft)}
+.bar{height:8px;background:var(--petrol-soft);border-radius:4px;overflow:hidden;margin:12px 0 6px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--petrol),var(--gold));transition:width .3s}
+.log{font:12px/1.5 var(--f-mono);max-height:300px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px;white-space:pre-wrap;word-break:break-word}
+.tw{overflow:auto;border:1px solid var(--line);border-radius:6px;background:var(--panel);max-height:70vh}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font:600 11px var(--f-body);text-transform:uppercase;letter-spacing:.6px;color:var(--muted);background:var(--bg);position:sticky;top:0;z-index:1}
+th[data-s]{cursor:pointer} th[data-s]:hover{color:var(--petrol)}
+td.n{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--f-mono)}
+td.wrap{white-space:normal;min-width:240px}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--petrol-soft)}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap}
+.p-ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.p-warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.p-bad{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+.p-info{background:var(--gold-soft);color:var(--gold)}
+.p-src{background:var(--petrol-soft);color:var(--petrol)}
+.muted{color:var(--muted)} .mono{font-family:var(--f-mono)} .small{font-size:12px}
+.note{font-size:12.5px;color:var(--muted);max-width:75ch;margin:4px 0 10px}
+.drawer{position:fixed;inset:0 0 0 auto;width:min(1280px,100%);background:var(--panel);border-left:1px solid var(--line);box-shadow:-12px 0 32px rgba(0,0,0,.18);z-index:20;display:flex;flex-direction:column}
+.dhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px max(16px,env(safe-area-inset-right,0px)) 12px 16px;border-bottom:1px solid var(--line);padding-top:max(12px,env(safe-area-inset-top,0px))}
+.dbody{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);flex:1;min-height:0}
+.dprev{border-right:1px solid var(--line);background:var(--bg);min-height:0;display:flex}
+.dprev iframe,.dprev img{flex:1;width:100%;height:100%;border:0;object-fit:contain}
+.dform{overflow:auto;padding:16px max(16px,env(safe-area-inset-right,0px)) 40px 16px}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:0 12px}
+@media (max-width:900px){.dbody{grid-template-columns:1fr}.dprev{height:45vh;border-right:0;border-bottom:1px solid var(--line)}}
+.benf{display:grid;grid-template-columns:24px 1fr 60px 60px;gap:4px 10px;align-items:center;font-variant-numeric:tabular-nums;font-size:12.5px}
+.benf .b{height:14px;position:relative;background:var(--petrol-soft);border-radius:2px}
+.benf .b i{position:absolute;inset:0 auto 0 0;background:var(--petrol);border-radius:2px}
+.benf .b u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--gold)}
+.toast{position:fixed;bottom:max(16px,env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;z-index:30;font-size:13px}
+kbd{font:11px var(--f-mono);border:1px solid var(--line);border-radius:3px;padding:0 4px;background:var(--bg)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="gut">
+  <h1>Audit faktur<small>Vytěžování dokladů projektu · SQLite</small></h1>
+  <div class="proj">
+    <label class="muted" for="projSel">Projekt</label>
+    <select id="projSel"></select>
+    <input id="projNew" placeholder="Název nového projektu" size="20">
+    <button class="btn ghost" id="projAdd">Založit</button>
+  </div>
+</header>
+<nav id="tabs" class="gut">
+  <button data-t="import" class="on">Import</button>
+  <button data-t="list">Doklady</button>
+  <button data-t="checks">Kontroly<span class="badge" id="badge" hidden></span></button>
+  <button data-t="overview">Přehledy</button>
+  <button data-t="project">Projekt</button>
+  <button data-t="export">Export</button>
+  <button data-t="sql">SQL</button>
+  <button data-t="settings">Nastavení</button>
+</nav>
+<main class="gut">
+  <div class="stats" id="stats"></div>
+
+  <section id="t-import">
+    <div class="grid">
+      <div class="card">
+        <h2>Načíst doklady</h2>
+        <div class="drop" id="drop">Přetáhněte sem složku nebo soubory<br><span class="small">PDF (textová, skenovaná, s přílohou ISDOC/Factur-X) · JPG · PNG · TIFF · ISDOC · ISDOCX · XML (UBL, Pohoda, Factur-X) · ZIP</span></div>
+        <div class="row" style="margin:12px 0">
+          <label class="btn" for="dirIn">Vybrat složku</label><input type="file" id="dirIn" webkitdirectory multiple hidden>
+          <label class="btn ghost" for="fileIn">Vybrat soubory</label><input type="file" id="fileIn" multiple hidden>
+          <button class="btn ghost" id="dirPick" hidden>Připojit složku natrvalo</button>
+        </div>
+        <p class="note">Každý soubor se pozná podle otisku obsahu. Hotové soubory se přeskočí, takže lze načítat po dávkách a kdykoli pokračovat. Stejný soubor nalezený ve více cestách se zapíše jako nález.</p>
+        <div class="row">
+          <button class="btn gold" id="startBtn" disabled>Spustit zpracování</button>
+          <button class="btn ghost" id="stopBtn" disabled>Zastavit</button>
+          <button class="btn ghost" id="retryBtn" hidden>Zkusit znovu chybné</button>
+          <span id="queueInfo" class="muted"></span>
+        </div>
+        <div class="bar"><i id="prog"></i></div>
+        <div id="progTxt" class="muted mono small"></div>
+        <div id="curFile" class="muted small" style="word-break:break-all"></div>
+      </div>
+      <div class="card">
+        <h2>Průběh</h2>
+        <div class="log" id="log">Načítám knihovny…</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="t-list" hidden>
+    <div class="row" style="margin-bottom:10px">
+      <input id="q" placeholder="Hledat dodavatele, číslo, IČO, VS, cestu…" size="32">
+      <select id="fStat"><option value="">Všechny stavy</option><option value="flag">S vážným nálezem</option><option value="anyflag">S jakýmkoli nálezem</option><option value="low">Nízká jistota</option><option value="rev">Neověřené</option><option value="ok">Ověřené</option></select>
+      <select id="fType"><option value="">Všechny typy</option></select>
+      <select id="fCur"><option value="">Všechny měny</option></select>
+      <span id="listInfo" class="muted"></span>
+      <span style="margin-left:auto" class="row"><button class="btn ghost sm" id="reviewBtn">Ověřovat postupně</button><button class="btn ghost sm" id="prev">‹</button><span id="pg" class="mono small"></span><button class="btn ghost sm" id="next">›</button></span>
+    </div>
+    <div class="tw"><table id="tbl"></table></div>
+  </section>
+
+  <section id="t-checks" hidden>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn" id="runChecks">Přepočítat kontroly</button>
+      <button class="btn ghost" id="aresBtn">Ověřit dodavatele v ARES</button>
+      <select id="fSev"><option value="">Všechny závažnosti</option><option>vysoká</option><option>střední</option><option>nízká</option></select>
+      <select id="fCode"><option value="">Všechny kontroly</option></select>
+      <span class="muted" id="chkInfo"></span>
+    </div>
+    <div class="grid" style="margin-bottom:16px">
+      <div class="card"><h2>Souhrn nálezů</h2><div class="tw" style="max-height:340px"><table id="chkSum"></table></div></div>
+      <div class="card"><h2>Benfordův zákon, první číslice</h2><p class="note">Rozložení prvních číslic celkových částek. Zlatá značka je očekávaný podíl. Velké odchylky mohou ukazovat na uměle tvořené částky.</p><div id="benford"></div></div>
+    </div>
+    <div class="tw"><table id="chkTbl"></table></div>
+  </section>
+
+  <section id="t-overview" hidden>
+    <div class="grid">
+      <div class="card"><h2>Dodavatelé</h2><div class="tw" style="max-height:420px"><table id="ovSup"></table></div></div>
+      <div class="card"><h2>Podle měsíce zdanitelného plnění</h2><div class="tw" style="max-height:420px"><table id="ovMon"></table></div></div>
+      <div class="card"><h2>Nákladové kategorie</h2><div class="tw" style="max-height:420px"><table id="ovCat"></table></div></div>
+      <div class="card"><h2>Typy dokladů, měny a zdroje dat</h2><div class="tw" style="max-height:420px"><table id="ovType"></table></div></div>
+    </div>
+  </section>
+
+  <section id="t-project" hidden>
+    <div class="grid">
+      <div class="card"><h2>Identita projektu</h2>
+        <div class="field"><label for="pOwn">IČO odběratele (vaše firma / produkce), oddělit čárkou</label><input id="pOwn" placeholder="např. 45317054"></div>
+        <p class="note">Nejspolehlivější způsob, jak u skenů rozlišit dodavatele od odběratele. Faktury vystavené na jiné IČO se označí jako nález.</p>
+        <div class="row"><div class="field"><label for="pFrom">Období projektu od</label><input id="pFrom" type="date"></div><div class="field"><label for="pTo">do</label><input id="pTo" type="date"></div></div>
+        <div class="field"><label for="pBudget">Rozpočet projektu (CZK)</label><input id="pBudget" placeholder="1 800 000 000"></div>
+        <div class="field"><label for="pFx">Kurzy pro přepočet na CZK (když je doklad nemá)</label><input id="pFx" placeholder="EUR=24,35; USD=22,10; GBP=29,40"></div>
+      </div>
+      <div class="card"><h2>Hledané údaje</h2>
+        <p class="note">Popisky, které se mají na dokladech hledat navíc. Každý řádek se stane samostatným sloupcem v exportu.</p>
+        <textarea id="pLabels" rows="7" placeholder="Natáčecí den&#10;Zakázka&#10;Středisko&#10;Kód projektu&#10;Číslo smlouvy"></textarea>
+      </div>
+      <div class="card"><h2>Pravidla nákladových kategorií</h2>
+        <p class="note">Jeden řádek = <span class="mono">text nebo IČO =&gt; kategorie</span>. Hledá se v dodavateli, IČO, složce, poznámkách a položkách. Platí první shoda. Ručně ověřené doklady se nemění.</p>
+        <textarea id="pRules" rows="7" placeholder="27082440 => Technika – světla&#10;catering => Stravování štábu&#10;Lokace/ => Lokace&#10;hotel => Ubytování"></textarea>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="pSave">Uložit nastavení projektu</button>
+      <button class="btn ghost" id="pApply">Použít pravidla kategorií</button>
+      <button class="btn ghost" id="pReparse">Znovu vytěžit z uloženého textu</button>
+      <span class="muted small" id="pMsg"></span>
+    </div>
+  </section>
+
+  <section id="t-export" hidden>
+    <div class="grid">
+      <div class="card"><h2>Excel</h2>
+        <p class="note">Listy Doklady, Rozpis DPH, Položky, Další údaje, Kontroly, Dodavatelé a Soubory. Každý další údaj se automaticky stane sloupcem listu Doklady, takže neobvyklé doklady nic nerozbijí.</p>
+        <button class="btn" id="xXlsx">Stáhnout XLSX</button></div>
+      <div class="card"><h2>Power BI</h2>
+        <p class="note">CSV v UTF-8 se středníkem. Tabulky se propojují přes klíč <span class="mono">invoice_id</span>. V Power BI zvolte Získat data → Složka. Případně lze databázi .sqlite otevřít přes ODBC ovladač SQLite.</p>
+        <div class="row"><button class="btn" id="xCsv">Stáhnout CSV</button><button class="btn ghost" id="xDb">Stáhnout databázi .sqlite</button></div></div>
+      <div class="card"><h2>Export podle šablony auditora</h2>
+        <p class="note">Jeden řádek = <span class="mono">Název sloupce = pole</span>. Pole je název sloupce z listu Doklady (např. <span class="mono">supplier_ico</span>, <span class="mono">+ Natáčecí den</span>) nebo text v uvozovkách.</p>
+        <textarea id="tpl" rows="8"></textarea>
+        <div class="row" style="margin-top:8px"><button class="btn" id="xTpl">Stáhnout XLSX podle šablony</button><button class="btn ghost sm" id="tplDef">Výchozí šablona</button><button class="btn ghost sm" id="tplFields">Vypsat dostupná pole</button></div></div>
+      <div class="card"><h2>Záloha a obnova</h2>
+        <p class="note">Databáze se průběžně ukládá v tomto prohlížeči. Na jiný počítač ji přenesete stažením .sqlite a nahráním tam.</p>
+        <div class="row"><label class="btn ghost" for="dbIn">Nahrát .sqlite</label><input type="file" id="dbIn" accept=".sqlite,.db" hidden>
+        <button class="btn ghost" id="wipe">Smazat projekt</button></div>
+        <div id="wipeConfirm" hidden style="margin-top:10px" class="row"><span class="p-bad pill">Opravdu smazat všechna data projektu?</span><button class="btn" id="wipeYes">Ano, smazat</button><button class="btn ghost" id="wipeNo">Ne</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="t-sql" hidden>
+    <div class="card">
+      <h2>Vlastní dotaz</h2>
+      <p class="note">Tabulky: files, file_paths, invoices, invoice_vat, invoice_items, invoice_fields, audit_flags, ares, raw_text. Pohledy: v_invoices, v_by_supplier.</p>
+      <textarea id="sqlQ" rows="5">SELECT supplier_name, supplier_ico, COUNT(*) dokladu, ROUND(SUM(total_czk),2) celkem_czk
+FROM invoices WHERE project = :project GROUP BY supplier_ico ORDER BY celkem_czk DESC LIMIT 50;</textarea>
+      <div class="row" style="margin:8px 0"><button class="btn" id="sqlRun">Spustit</button><button class="btn ghost" id="sqlX">Výsledek do XLSX</button><span class="muted small">Parametr <span class="mono">:project</span> = aktuální projekt</span></div>
+      <div class="tw"><table id="sqlTbl"></table></div>
+    </div>
+  </section>
+
+  <section id="t-settings" hidden>
+    <div class="grid">
+      <div class="card"><h2>Rozpoznávání</h2>
+        <div class="field"><label for="sLang">Jazyky OCR</label><input id="sLang"></div>
+        <div class="field"><label for="sWorkers">Souběžně zpracovávaných souborů (OCR vlákna)</label><input id="sWorkers" type="number" min="1" max="8"></div>
+        <div class="field"><label for="sPages">Max. stran OCR na doklad</label><input id="sPages" type="number" min="1" max="60"></div>
+        <div class="field"><label for="sScale">Rozlišení OCR (šířka stránky v px)</label><input id="sScale" type="number" min="1200" max="4000" step="100"></div>
+        <label class="row small"><input type="checkbox" id="sQr"> Hledat QR Platbu / QR Fakturu</label>
+        <label class="row small"><input type="checkbox" id="sSplit"> Vícestránkové skeny: každá strana je samostatný doklad</label>
+        <label class="row small"><input type="checkbox" id="sOcrText"> OCR i u textových PDF (pomalé, pro problematická PDF)</label>
+        <label class="row small"><input type="checkbox" id="sAres"> Doplňovat názvy dodavatelů z ARES</label>
+      </div>
+      <div class="card"><h2>AI pro nejisté doklady</h2>
+        <p class="note">Volitelné. Když doklad nedosáhne prahu jistoty, pošle se do Claude API a výsledek se sloučí. Údaje z QR a ISDOC mají vždy přednost. Klíč zůstává jen v tomto prohlížeči.</p>
+        <div class="field"><label for="sKey">Anthropic API klíč</label><input id="sKey" type="password" placeholder="sk-ant-…" autocomplete="off"></div>
+        <div class="field"><label for="sModel">Model</label><input id="sModel"></div>
+        <div class="field"><label for="sThr">Práh jistoty pro AI a pro „nejisté“ (%)</label><input id="sThr" type="number" min="0" max="100"></div>
+        <div class="field"><label for="sAiMode">Co posílat</label><select id="sAiMode"><option value="image">Obraz dokladu + OCR text (přesnější)</option><option value="text">Jen OCR text (levnější)</option></select></div>
+        <label class="row small"><input type="checkbox" id="sAiAll"> Posílat do AI všechny nestrukturované doklady</label>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px"><button class="btn" id="saveSet">Uložit nastavení</button><span id="setMsg" class="muted small"></span></div>
+  </section>
+</main>
+<aside class="drawer" id="drawer" hidden></aside>
+<div class="toast" id="toast" hidden></div>
+
+<script id="core">
+"use strict";
+/* ======================= JÁDRO VYTĚŽOVÁNÍ =======================
+   Čisté funkce bez DOM (kromě DOMParser pro XML). Testovatelné v Node. */
+
+const MONTHS={leden:1,ledna:1,unor:2,unora:2,brezen:3,brezna:3,duben:4,dubna:4,kveten:5,kvetna:5,cerven:6,cervna:6,cervenec:7,cervence:7,srpen:8,srpna:8,zari:9,rijen:10,rijna:10,listopad:11,listopadu:11,prosinec:12,prosince:12,
+  january:1,jan:1,february:2,feb:2,march:3,mar:3,april:4,apr:4,may:5,june:6,jun:6,july:7,jul:7,august:8,aug:8,september:9,sep:9,sept:9,october:10,oct:10,november:11,nov:11,december:12,dec:12,
+  januar:1,janner:1,februar:2,marz:3,maerz:3,mai:5,juni:6,juli:7,oktober:10,okt:10,dezember:12,dez:12};
+const VALID_RATES=[0,5,7,9,10,12,13,15,19,20,21,23,25,27];
+const pad2=n=>String(n).padStart(2,'0');
+const stripDia=s=>String(s).normalize('NFD').replace(/[̀-ͯ]/g,'');
+const escRx=s=>String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const blank=s=>' '.repeat(s.length);
+
+function mkDate(y,m,d){if(!(y>=1990&&y<=2100&&m>=1&&m<=12&&d>=1&&d<=31))return null;
+  const dt=new Date(Date.UTC(y,m-1,d));if(dt.getUTCMonth()!==m-1)return null;return `${y}-${pad2(m)}-${pad2(d)}`}
+
+function isoD(v){if(v==null)return null;const s=String(v).trim();if(!s)return null;
+  let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return mkDate(+m[1],+m[2],+m[3]);
+  m=s.match(/^(\d{4})(\d{2})(\d{2})$/);if(m)return mkDate(+m[1],+m[2],+m[3]);
+  const d=datesIn(s);return d.length?d[0].v:null}
+
+function datesIn(s){const out=[];if(!s)return out;s=String(s);let m;
+  const r1=/(?<!\d)(\d{1,2})\s?[.\/,-]\s?(\d{1,2})\s?[.\/-]\s?(\d{4}|\d{2})(?![\d,]\d)/g;
+  while((m=r1.exec(s))){let y=+m[3];if(m[3].length===2)y+=2000;const d=mkDate(y,+m[2],+m[1]);if(d)out.push({v:d,i:m.index,len:m[0].length})}
+  const r2=/(?<!\d)(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})(?!\d)/g;
+  while((m=r2.exec(s))){const d=mkDate(+m[1],+m[2],+m[3]);if(d)out.push({v:d,i:m.index,len:m[0].length})}
+  const r3=/(?<!\d)(\d{1,2})\.?\s+([A-Za-zÀ-ž]{3,10})\.?,?\s+(\d{4})(?!\d)/g;
+  while((m=r3.exec(s))){const mo=MONTHS[stripDia(m[2].toLowerCase())];const d=mo&&mkDate(+m[3],mo,+m[1]);if(d)out.push({v:d,i:m.index,len:m[0].length})}
+  const r4=/\b([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})(?!\d)/g;
+  while((m=r4.exec(s))){const mo=MONTHS[m[1].toLowerCase()];const d=mo&&mkDate(+m[3],mo,+m[2]);if(d)out.push({v:d,i:m.index,len:m[0].length})}
+  out.sort((a,b)=>a.i-b.i);return out}
+
+function num(s){if(s==null)return null;if(typeof s==='number')return isFinite(s)?s:null;
+  let t=String(s).trim();if(!t)return null;
+  const neg=/^\(.*\)$/.test(t)||/[-−–]\s*$/.test(t)||/^[-−–]/.test(t);
+  t=t.replace(/[^\d,.]/g,'');if(!/\d/.test(t))return null;
+  const lc=t.lastIndexOf(','),ld=t.lastIndexOf('.');
+  if(lc>-1&&ld>-1){t=lc>ld?t.replace(/\./g,'').replace(',','.'):t.replace(/,/g,'')}
+  else if(lc>-1){t=(t.match(/,/g).length>1)?t.replace(/,/g,''):t.replace(',','.')}
+  else if(ld>-1){const cnt=t.match(/\./g).length;if(cnt>1||t.length-ld-1===3)t=t.replace(/\./g,'')}
+  const v=parseFloat(t);if(!isFinite(v))return null;return neg?-v:v}
+const r2=v=>v==null?null:Math.round(v*100)/100;
+
+function amountsIn(s){if(!s)return [];let t=String(s);
+  for(const d of datesIn(t).reverse())t=t.slice(0,d.i)+blank(t.substr(d.i,d.len))+t.slice(d.i+d.len);
+  t=t.replace(/\+\d{3}[\s\d]{9,13}/g,blank)
+     .replace(/\d{1,3}(?:[,.]\d+)?\s?%/g,blank)
+     .replace(/\b[A-Z]{2}\s?\d{8,12}\b/g,blank)
+     .replace(/\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}\b/g,blank);
+  const out=[];const rx=/(?<![\d\p{L}\/])[-−]?\d{1,3}(?:[ .'’]\d{3})+(?:[,.]\d{1,2})?(?!\d)|(?<![\d\p{L}\/.,])[-−]?\d+[,.]\d{1,2}(?![\d])|(?<![\d\p{L}\/.,])\d+(?![\d.,\/])/gu;
+  let m;while((m=rx.exec(t))){const v=num(m[0]);if(v!=null)out.push({v,i:m.index,raw:m[0]})}
+  return out}
+
+function fixDigits(s){return String(s).replace(/[Oo]/g,'0').replace(/[lI|]/g,'1').replace(/S/g,'5').replace(/B/g,'8')}
+function icoOk(i){if(!/^\d{8}$/.test(i||''))return false;let s=0;for(let k=0;k<7;k++)s+=+i[k]*(8-k);return (11-s%11)%10===+i[7]}
+function normIco(s){if(s==null)return null;let d=fixDigits(String(s)).replace(/\D/g,'');if(!d)return null;if(d.length<8&&d.length>=5)d=d.padStart(8,'0');return d.length===8?d:d.slice(0,8)}
+function normDic(s){if(!s)return null;let t=String(s).toUpperCase().replace(/[\s.\-]/g,'');const m=t.match(/^([A-Z]{2})([0-9A-Z]{8,12})$/);if(!m)return t||null;
+  return m[1]+(['CZ','SK','DE','PL','HU','AT'].includes(m[1])?fixDigits(m[2]):m[2])}
+function ibanOk(iban){const s=String(iban||'').replace(/\s/g,'').toUpperCase();if(!/^[A-Z]{2}\d{2}[A-Z0-9]{8,30}$/.test(s))return false;
+  const r=(s.slice(4)+s.slice(0,4)).replace(/[A-Z]/g,c=>c.charCodeAt(0)-55);let mod=0;for(const ch of r)mod=(mod*10+ +ch)%97;return mod===1}
+function ibanToCz(iban){const s=String(iban||'').replace(/\s/g,'').toUpperCase();if(!/^CZ\d{22}$/.test(s))return null;
+  const bank=s.slice(4,8),pre=s.slice(8,14).replace(/^0+/,''),acc=s.slice(14).replace(/^0+/,'');return (pre?pre+'-':'')+acc+'/'+bank}
+function czAccToIban(a){const m=String(a||'').replace(/\s/g,'').match(/^(?:(\d{1,6})-)?(\d{2,10})\/(\d{4})$/);if(!m)return null;
+  const bban=m[3]+(m[1]||'').padStart(6,'0')+m[2].padStart(10,'0');const r=(bban+'123500').replace(/\d/g,c=>c);let mod=0;for(const ch of r)mod=(mod*10+ +ch)%97;
+  return 'CZ'+pad2(98-mod)+bban}
+function czAccOk(a){const m=String(a||'').replace(/\s/g,'').match(/^(?:(\d{1,6})-)?(\d{2,10})\/(\d{4})$/);if(!m)return false;
+  const w=[6,3,7,9,10,5,8,4,2,1];const chk=(n,len)=>{const d=n.padStart(len,'0');let s=0;for(let i=0;i<len;i++)s+=+d[i]*w[w.length-len+i];return s%11===0};
+  return (!m[1]||chk(m[1],6))&&chk(m[2],10)}
+
+/* ---------- textová analýza ---------- */
+const RX={
+  sup:/\b(dodavatel|prod[áa]vaj[íi]c[íi]|supplier|seller|vendor|lieferant|verk[äa]ufer|vystavil|zhotovitel|poskytovatel|pronajimatel|pronaj[ií]matel|rechnungssteller|from:)/i,
+  cus:/\b(odb[ěe]ratel|kupuj[íi]c[íi]|customer|buyer|bill\s*to|invoice\s*to|kunde|rechnungsempf[äa]nger|objednatel|p[řr][íi]jemce|n[áa]jemce|sold\s*to|to:)/i,
+  company:/(s\.\s?r\.\s?o\.?|spol\.\s?s\s?r\.\s?o\.?|\ba\.\s?s\.|\bk\.\s?s\.|v\.\s?o\.\s?s\.|\bz\.\s?s\.|o\.\s?p\.\s?s\.|z\.\s?[úu]\.|\bs\.\s?p\.|\bGmbH\b|\bAG\b|\bLtd\.?|\bLimited\b|\bLLC\b|\bInc\.?|\bSE\b|\bKG\b|\bs\.r\.l\.|\bS\.A\.|\bB\.V\.|\bsp\.\s?z\s?o\.\s?o\.)/i,
+  invno:[/(?:faktur[ay]|da[nň]ov[ýy]\s+doklad|doklad|invoice|rechnung|dobropis|vrubopis|vy[úu][čc]tov[áa]n[íi]|credit\s*note|z[áa]lohov[áa]\s+faktura|proforma)[^\n:]{0,30}?(?:[čc]\.|[čc][íi]slo|no\.?|nr\.?|number|nummer|#)\s*[:.]?/i,
+    /[čc][íi]slo\s+(?:faktury|dokladu|dobropisu)\s*[:.]?/i,/(?:invoice|rechnungs?)[\s-]*(?:no|nr|number|nummer|#)\.?\s*[:.]?/i,/^\s*(?:faktura|invoice|rechnung)\s*[:.]?\s+(?=\S*\d)/i],
+  vs:/variabiln[íi]\s+symbol|var\.?\s*symb(?:ol)?\.?|\bV\.?\s?S\.?(?=\s*[:.]?\s*\d)/i,
+  ks:/konstantn[íi]\s+symbol|konst\.?\s*symb(?:ol)?\.?|\bK\.?\s?S\.?(?=\s*[:.]?\s*\d)/i,
+  ss:/specifick[ýy]\s+symbol|spec\.?\s*symb(?:ol)?\.?|\bS\.?\s?S\.?(?=\s*[:.]?\s*\d)/i,
+  order:/(?:[čc][íi]slo\s+)?objedn[áa]vk[ay]?(?:\s+[čc]\.)?|[čc]\.\s*obj\.|va[šs]e\s+objedn[áa]vka|order\s*(?:no|number|ref)|purchase\s+order|\bPO\s*(?:no|number|#)|bestell(?:nummer|nr)|ihre\s+bestellung/i,
+  contract:/(?:[čc][íi]slo\s+)?smlouv[ay](?:\s+[čc]\.)?|rámcov[áa]\s+smlouva|contract\s*(?:no|number|ref)?|vertrag(?:snummer)?/i,
+  issue:/datum\s+vystaven[íi]|vystaveno(?:\s+dne)?|dne\s+vystaven[íi]|datum\s+dokladu|datum\s+vyhotoven[íi]|invoice\s+date|date\s+of\s+issue|issue\s+date|issued(?:\s+on)?|rechnungsdatum|ausstellungsdatum/i,
+  duzp:/DUZP|D\.?\s?U\.?\s?Z\.?\s?P\.?|datum\s+uskute[čc]n(?:[ěe]n[íi])?\s+(?:zdaniteln[ée]ho\s+)?pln[ěe]n[íi]|datum\s+zdaniteln[ée]ho\s+pln[ěe]n[íi]|zdaniteln[ée]\s+pln[ěe]n[íi]|datum\s+pln[ěe]n[íi]|tax\s*point(?:\s+date)?|date\s+of\s+supply|supply\s+date|leistungsdatum|lieferdatum/i,
+  due:/datum\s+splatnosti|splatnost|splatno\s+dne|splatn[áa]\s+do|due\s+date|payment\s+due|date\s+due|f[äa]llig(?:keit|\s+am)?|zahlbar\s+bis|zahlungsziel/i,
+  total:/celkem\s+k\s+[úu]hrad[ěe]|k\s+[úu]hrad[ěe]|zb[ýy]v[áa]\s+(?:k\s+)?uhradit|celkov[áa]\s+[čc][áa]stka(?:\s+k\s+[úu]hrad[ěe])?|celkem\s+(?:v[čc]\.?\s*DPH|s\s+DPH|v[čc]etn[ěe]\s+DPH)|amount\s+due|total\s+due|balance\s+due|grand\s+total|total\s+(?:amount|incl\.?(?:\s+VAT)?|payable)|zu\s+zahlen|gesamtbetrag|endbetrag|rechnungsbetrag/i,
+  total2:/(?:^|\s)(celkem|total|summe|suma|úhrnem)(?:\s|:|$)/i,
+  base:/celkem\s+bez\s+DPH|z[áa]klad\s+(?:dan[ěe]\s+)?celkem|celkov[ýy]\s+z[áa]klad|sou[čc]et\s+bez\s+DPH|cena\s+bez\s+DPH\s+celkem|subtotal|net\s+amount|total\s+net|total\s+excl\.?(?:\s+VAT)?|nettobetrag|netto\s+gesamt|summe\s+netto/i,
+  vatt:/DPH\s+celkem|celkem\s+DPH|celkov[áa]\s+DPH|v[ýy][šs]e\s+DPH\s+celkem|total\s+VAT|VAT\s+(?:total|amount)|MwSt\.?\s*(?:gesamt|betrag)|USt\.?\s*betrag|summe\s+(?:MwSt|USt)/i,
+  adv:/ode[čc]et\s+z[áa]loh[y]?|ode[čc]ten[áa]?\s+z[áa]loh[ay]|uhrazeno\s+z[áa]loh(?:ou|ami)|zaplacen[ée]?\s+z[áa]loh[ay]|z[áa]lohy\s+celkem|ode[čc]teno|already\s+paid|prepaid|anzahlung|abschlag/i,
+  round:/zaokrouhlen[íi]|haléřové\s+vyrovnání|rounding|rundung/i,
+  ico:/(?<![\p{L}])(?:I[ČC]O?|I[ČC]\.|IC|IČ|ID\s*No\.?|Company\s*(?:ID|No\.?|Reg(?:istration)?\.?\s*No\.?)|Reg(?:istration)?\.?\s*No\.?|Identifika[čc]n[íi]\s+[čc][íi]slo|Firmenbuch(?:nummer)?)(?![\p{L}])\s*[:.]?\s*([0-9OolI|][0-9OolI|\s]{4,11})/giu,
+  dic:/(?<![\p{L}])(?:DI[ČC]|VAT\s*(?:ID|No\.?|Reg(?:istration)?\.?\s*No\.?|number)|USt-?Id(?:Nr)?\.?|UID|Tax\s*ID|I[ČC]\s*DPH)(?![\p{L}])\s*[:.]?\s*([A-Z]{2}\s?[0-9A-Z][0-9A-Z\s]{6,13})/giu,
+  dicBare:/\b(CZ|SK)\s?(\d{8,10})\b/g,
+  acc:/(?:[čc]\.?\s*[úu]\.?(?:[čc]tu)?|[čc][íi]slo\s+[úu][čc]tu|bankovn[íi]\s+(?:[úu][čc]et|spojen[íi])|[úu][čc]et|account(?:\s+no\.?)?|konto(?:nummer)?|bank\s+account)\s*[:.]?\s*((?:\d{1,6}\s?-\s?)?\d{2,10}\s?\/\s?\d{4})/i,
+  accBare:/(?<![\d\/])((?:\d{1,6}-)?\d{2,10}\/\d{4})(?![\d\/])/,
+  iban:/\b([A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}(?:\s?[A-Z0-9]{1,4})?)\b/g,
+  bic:/(?:BIC|SWIFT)(?:\s*\/\s*SWIFT|\s*kód)?\s*[:.]?\s*([A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b/i,
+  noise:/\b(tel|telefon|fax|mobil|gsm|e-?mail|www|http)/i,
+};
+const KNOWN_KEY=/^(I[ČC]O?|DI[ČC]|I[ČC]\s*DPH|datum|splatnost|variabiln|konstantn|specifick|celkem|z[áa]klad|DPH|sazba|dodavatel|odb[ěe]ratel|[čc][íi]slo\s+[úu][čc]tu|[úu][čc]et|banka|IBAN|SWIFT|BIC|tel|telefon|e-?mail|www|web|fax|mobil|DUZP|vystaveno|faktura|k\s+[úu]hrad|str[áa]nka|page)/i;
+
+const segOf=(line,pos)=>line.slice(0,pos).split(/\s{3,}/).length-1;
+const segs=line=>String(line).split(/\s{3,}/);
+
+function findLabeled(lines,rx,extract,look=2,from=0,to=lines.length){
+  const rxs=Array.isArray(rx)?rx:[rx];
+  for(const r of rxs)for(let i=from;i<to;i++){const m=lines[i].match(r);if(!m||/\S\s{3,}\S/.test(m[0]))continue;
+    const rest=lines[i].slice(m.index+m[0].length);let v=extract(segs(rest.replace(/^\s*[:.]?/,''))[0]);
+    if(v==null||v==='')v=extract(rest);
+    if(v!=null&&v!=='')return {v,i,lab:m[0]};
+    const sg=segOf(lines[i],m.index);
+    for(let j=1;j<=look&&i+j<lines.length;j++){const ss=segs(lines[i+j]);
+      v=extract(ss.length>sg?ss[sg]:(sg===0?lines[i+j]:''));if(v!=null&&v!=='')return {v,i:i+j,lab:m[0]}}}
+  return null}
+
+const exDate=s=>{const d=datesIn(s);return d.length?d[0].v:null};
+const exAmtLast=s=>{const a=amountsIn(s);return a.length?a[a.length-1].v:null};
+const exDigits=(min,max)=>s=>{const tok=(String(s||'').replace(/^\s*[:.#]?\s*/,'').match(/^[0-9OolI|]+/)||[''])[0];if(!tok||(tok.match(/\d/g)||[]).length<tok.length*0.7)return null;const d=fixDigits(tok);return d.length>=min&&d.length<=max?d:null};
+const exToken=s=>{const toks=String(s||'').match(/[A-Z0-9][A-Z0-9\/\-_.]{1,29}/gi)||[];
+  for(let t of toks){t=t.replace(/[.\-\/]+$/,'');if(t.length<2||!/\d/.test(t))continue;if(datesIn(t).length)continue;if(/^\d{1,2}$/.test(t))continue;return t}return null};
+const exText=s=>{const t=String(s||'').replace(/^\s*[:.\-]\s*/,'').trim();return t&&/\p{L}|\d/u.test(t)?t.slice(0,160):null};
+
+function partyNameNear(lines,startIdx,side,maxLook=6,stopRx){
+  let best=null;
+  for(let j=startIdx;j<Math.min(lines.length,startIdx+maxLook);j++){
+    if(j>startIdx&&stopRx&&stopRx.test(lines[j])&&side==null)break;
+    const ss=segs(lines[j]);let cand=side==null?lines[j]:(side==='L'?ss[0]:(ss.length>1?ss[ss.length-1]:''));
+    if(j===startIdx){const m=cand.match(RX.sup)||cand.match(RX.cus);if(m)cand=cand.slice(m.index+m[0].length)}
+    cand=cand.replace(/^\s*[:.\-]\s*/,'').trim();
+    if(!cand||cand.length<3)continue;
+    if(RX.sup.test(cand)&&cand.length<25||RX.cus.test(cand)&&cand.length<25)continue;
+    if(/I[ČC]O?\b|DI[ČC]|\bIC\b|tel|e-?mail|www|@|IBAN|[úu][čc]et/i.test(cand))continue;
+    if(/^\d|^\p{Lu}{0,2}\d/u.test(cand)&&!RX.company.test(cand))continue;
+    if(/\b\d{3}\s?\d{2}\b/.test(cand)&&!RX.company.test(cand))continue;
+    const letters=(cand.match(/\p{L}/gu)||[]).length;if(letters<3||letters/cand.length<0.5)continue;
+    cand=cand.replace(/,?\s*(?:I[ČC]O?|IC|Company\s*ID|VAT|DI[ČC]|Reg)\b.*$/i,'').trim();if(cand.length<3)continue;
+    if(RX.company.test(cand))return cand.slice(0,140);
+    if(!best)best=cand.slice(0,140)}
+  return best}
+
+function addressNear(lines,startIdx,side){const out=[];
+  for(let j=startIdx;j<Math.min(lines.length,startIdx+7);j++){const ss=segs(lines[j]);const c=(side==null?lines[j]:side==='L'?ss[0]:(ss.length>1?ss[ss.length-1]:'')).trim();
+    if(/\b\d{3}\s?\d{2}\b\s+\p{L}/u.test(c)){const prev=(()=>{const s2=segs(lines[j-1]||'');return (side==null?lines[j-1]:side==='L'?s2[0]:(s2.length>1?s2[s2.length-1]:''))||''})().trim();
+      if(prev&&/\d/.test(prev)&&!/I[ČC]|DI[ČC]/.test(prev))out.push(prev);out.push(c);break}}
+  return out.length?out.join(', ').slice(0,200):null}
+
+function parseText(text,opts={}){
+  const own=new Set((opts.ownIcos||[]).map(normIco).filter(Boolean));
+  const raw=String(text||'').replace(/\r/g,'').replace(/[   ]/g,' ').replace(/\t/g,'   ').replace(/[–—]/g,'-');
+  const lines=raw.split('\n').map(l=>l.replace(/\s+$/,'')).filter(l=>l.trim());
+  const r={fields:{},vat:[],items:[],format:'text'};
+  if(!lines.length){r.confidence=0;return r}
+  const L=(rx,ex,look)=>{const h=findLabeled(lines,rx,ex,look);return h?h.v:null};
+
+  // --- typ dokladu
+  const head=lines.slice(0,25).join('\n'),all=lines.join('\n');
+  if(/dobropis|opravn[ýy]\s+da[nň]ov[ýy]\s+doklad|credit\s*note|gutschrift|storno\s*rechnung/i.test(head))r.doc_type='Dobropis';
+  else if(/vrubopis|debit\s*note/i.test(head))r.doc_type='Vrubopis';
+  else if(/da[nň]ov[ýy]\s+doklad\s+k\s+p[řr]ijat[ée]\s+(?:platb|z[áa]loh)/i.test(head))r.doc_type='DDKPP';
+  else if(/z[áa]lohov[áa]\s+faktura|proforma|pro\s*forma|v[ýy]zva\s+k\s+platb|platebn[íi]\s+v[ýy]zva|advance\s+invoice|vorauszahlung/i.test(head))r.doc_type='Zálohová faktura';
+  else if(/paragon|[úu][čc]tenka|pokladn[íi]\s+doklad|stvrzenka|receipt|kassenbon|kassenbeleg/i.test(head))r.doc_type='Účtenka';
+  else if(/dodac[íi]\s+list|delivery\s+note|lieferschein/i.test(head)&&!/faktur|invoice|rechnung/i.test(head))r.doc_type='Dodací list';
+  else if(/objedn[áa]vka|purchase\s+order|bestellung/i.test(lines.slice(0,4).join(' '))&&!/faktur|invoice|rechnung/i.test(head))r.doc_type='Objednávka';
+  else r.doc_type='Faktura';
+
+  // --- identifikátory
+  r.invoice_no=L(RX.invno,exToken,2);
+  r.vs=L(RX.vs,exDigits(1,10),1);
+  r.ks=L(RX.ks,exDigits(1,10),1);
+  r.ss=L(RX.ss,exDigits(1,10),1);
+  if(!r.invoice_no&&r.vs)r.invoice_no=r.vs;
+  r.order_no=L(RX.order,exToken,1);
+  r.contract_no=L(RX.contract,exToken,1);
+  if(r.order_no&&r.order_no===r.invoice_no)r.order_no=null;
+
+  // --- data
+  r.issue_date=L(RX.issue,exDate,2);
+  r.duzp=L(RX.duzp,exDate,2);
+  r.due_date=L(RX.due,exDate,2);
+  if(!r.issue_date){const m=all.match(/(?:\bdne|\bv\s+\p{L}+\s+dne|\bdatum)\s*[:.]?\s*([^\n]{6,20})/iu);if(m)r.issue_date=exDate(m[1])}
+  if(!r.issue_date){const ds=datesIn(lines.slice(0,30).join('\n'));if(ds.length)r.issue_date=ds[0].v}
+  if(!r.duzp&&r.issue_date&&/da[nň]ov[ýy]\s+doklad/i.test(all))r.duzp_assumed=true;
+
+  // --- strany
+  const icoHits=[];lines.forEach((ln,i)=>{RX.ico.lastIndex=0;let m;while((m=RX.ico.exec(ln))){const v=normIco(m[1].split(/\s{2,}/)[0]);if(v)icoHits.push({ico:v,line:i,pos:m.index,col:segOf(ln,m.index),ok:icoOk(v)})}});
+  const dicHits=[];lines.forEach((ln,i)=>{RX.dic.lastIndex=0;let m;while((m=RX.dic.exec(ln))){const v=normDic(m[1].split(/\s{2,}/)[0]);if(v&&/^[A-Z]{2}[0-9A-Z]{8,12}$/.test(v))dicHits.push({dic:v,line:i,pos:m.index,col:segOf(ln,m.index)})}
+    RX.dicBare.lastIndex=0;while((m=RX.dicBare.exec(ln))){const v=m[1]+m[2];if(!dicHits.some(d=>d.dic===v&&d.line===i))dicHits.push({dic:v,line:i,pos:m.index,col:segOf(ln,m.index)})}});
+  if(!icoHits.length)for(const d of dicHits)if(/^CZ\d{8}$/.test(d.dic)&&icoOk(d.dic.slice(2)))icoHits.push({ico:d.dic.slice(2),line:d.line,pos:d.pos,col:d.col,ok:true,fromDic:true});
+  const uniq=[];for(const h of icoHits)if(!uniq.some(u=>u.ico===h.ico))uniq.push(h);
+  const supL=(()=>{for(let i=0;i<lines.length;i++){const m=lines[i].match(RX.sup);if(m)return {i,pos:m.index}}return null})();
+  const cusL=(()=>{for(let i=0;i<lines.length;i++){const m=lines[i].match(RX.cus);if(m)return {i,pos:m.index}}return null})();
+  let sup=null,cus=null,supSide=null,cusSide=null;
+  if(supL&&cusL&&supL.i===cusL.i){supSide=supL.pos<cusL.pos?'L':'R';cusSide=supSide==='L'?'R':'L'}
+  if(own.size){sup=uniq.find(h=>!own.has(h.ico))||null;cus=uniq.find(h=>own.has(h.ico))||null}
+  if(!sup&&supL&&cusL){
+    if(supL.i===cusL.i){const supLeft=supL.pos<cusL.pos;supSide=supLeft?'L':'R';cusSide=supLeft?'R':'L';
+      const after=icoHits.filter(h=>h.line>=supL.i);
+      for(const h of after){const left=h.col===0&&!(after.filter(x=>x.line===h.line).length>1&&h!==after.filter(x=>x.line===h.line)[0]);
+        const isLeft=after.filter(x=>x.line===h.line).length>1?h===after.filter(x=>x.line===h.line).sort((a,b)=>a.pos-b.pos)[0]:left;
+        if(isLeft===supLeft){if(!sup)sup=h}else{if(!cus)cus=h}if(sup&&cus)break}}
+    else{const inRange=(h,a,b)=>h.line>=a.i&&(b.i<a.i||h.line<b.i);
+      sup=icoHits.find(h=>inRange(h,supL,cusL))||null;cus=icoHits.find(h=>inRange(h,cusL,supL)&&(!sup||h.ico!==sup.ico))||null}}
+  if(!sup&&!own.size&&cusL&&!supL){cus=icoHits.find(h=>h.line>=cusL.i&&h.line<=cusL.i+6)||null;sup=uniq.find(h=>!cus||h.ico!==cus.ico)||null}
+  if(!sup&&!own.size&&supL&&!cusL){sup=icoHits.find(h=>h.line>=supL.i)||null;cus=uniq.find(h=>!sup||h.ico!==sup.ico)||null}
+  if(!sup&&!own.size&&!(cusL&&!supL)){sup=uniq[0]||null;if(!cus)cus=uniq.find(h=>!sup||h.ico!==sup.ico)||null}
+  if(!sup&&own.size&&!uniq.find(h=>!own.has(h.ico))){/* jen vlastní IČO */}
+  if(sup&&cus&&sup.ico===cus.ico)cus=uniq.find(h=>h.ico!==sup.ico)||null;
+  if(sup){r.supplier_ico=sup.ico}if(cus){r.customer_ico=cus.ico}
+  const pickDic=(p,other)=>{if(!p)return null;const d=dicHits.find(d=>d.dic.endsWith(p.ico));if(d)return d.dic;
+    const near=dicHits.filter(d=>Math.abs(d.line-p.line)<=4&&(d.col===p.col||segs(lines[d.line]).length===1)&&(!other||!d.dic.endsWith(other.ico))).sort((a,b)=>Math.abs(a.line-p.line)-Math.abs(b.line-p.line));return near[0]?.dic||null};
+  r.supplier_dic=pickDic(sup,cus);r.customer_dic=pickDic(cus,sup);
+  if(!r.supplier_dic&&!sup&&dicHits.length)r.supplier_dic=dicHits[0].dic;
+  if(r.customer_dic&&r.customer_dic===r.supplier_dic)r.customer_dic=null;
+  // jména
+  if(supL)r.supplier_name=partyNameNear(lines,supL.i,supSide,6,RX.cus);
+  if(cusL)r.customer_name=partyNameNear(lines,cusL.i,cusSide,6,RX.sup);
+  const nameByIco=h=>{if(!h)return null;for(let j=h.line;j>=Math.max(0,h.line-6);j--){const ss=segs(lines[j]);const c=(ss.length>1?(ss[Math.min(h.col,ss.length-1)]):lines[j]).trim();if(RX.company.test(c)&&!/I[ČC]|DI[ČC]/.test(c))return c.replace(RX.sup,'').replace(RX.cus,'').replace(/^\s*[:.\-]\s*/,'').slice(0,140)}return null};
+  if(!r.supplier_name||(sup&&!RX.company.test(r.supplier_name)&&nameByIco(sup)))r.supplier_name=nameByIco(sup)||r.supplier_name;
+  if(!r.customer_name)r.customer_name=nameByIco(cus);
+  if(!r.supplier_name&&!supL){const c=lines.slice(0,8).find(l=>RX.company.test(l));if(c)r.supplier_name=segs(c)[0].trim().slice(0,140)}
+  if(supL)r.supplier_address=addressNear(lines,supL.i,supSide);
+  if(cusL)r.customer_address=addressNear(lines,cusL.i,cusSide);
+
+  // --- platba
+  const accH=findLabeled(lines,RX.acc,s=>{const m=String(s||'').match(/((?:\d{1,6}\s?-\s?)?\d{2,10}\s?\/\s?\d{4})/);return m?m[1].replace(/\s/g,''):null},1);
+  r.bank_account=accH?accH.v:(()=>{const m=all.match(RX.accBare);return m?m[1]:null})();
+  const ibans=[];let m;RX.iban.lastIndex=0;while((m=RX.iban.exec(all))){const v=m[1].replace(/\s/g,'');if(ibanOk(v))ibans.push(v)}
+  r.iban=ibans[0]||null;if(!r.bank_account&&r.iban)r.bank_account=ibanToCz(r.iban);
+  const bic=all.match(RX.bic);if(bic)r.bic=bic[1];
+
+  // --- měna
+  const cc={CZK:0,EUR:0,USD:0,GBP:0,PLN:0,HUF:0,CHF:0};
+  for(const [k,rx] of [['CZK',/\bCZK\b|K[čc]\b|,-\s*K/g],['EUR',/\bEUR\b|€/g],['USD',/\bUSD\b|US\$|\$/g],['GBP',/\bGBP\b|£/g],['PLN',/\bPLN\b|zł/g],['HUF',/\bHUF\b|\bFt\b/g],['CHF',/\bCHF\b/g]])cc[k]=(all.match(rx)||[]).length;
+  const totLine=lines.find(l=>RX.total.test(l));
+  if(totLine)for(const [k,rx] of [['EUR',/EUR|€/],['USD',/USD|\$/],['GBP',/GBP|£/],['PLN',/PLN|zł/],['CZK',/CZK|K[čc]/]])if(rx.test(totLine))cc[k]+=5;
+  r.currency=Object.entries(cc).sort((a,b)=>b[1]-a[1])[0][1]>0?Object.entries(cc).sort((a,b)=>b[1]-a[1])[0][0]:'CZK';
+  const fx=all.match(/kurz(?:\s+(?:ČNB|CNB|devizov[ýy]))?[^\d\n]{0,25}(\d{1,3}[,.]\d{1,4})/i);if(fx)r.fx_rate=num(fx[1]);
+
+  // --- částky
+  const notTotal=l=>RX.base.test(l)||RX.vatt.test(l)||RX.adv.test(l)||RX.noise.test(l)||/I[ČC]O?\b|DI[ČC]|[úu][čc]et|IBAN|z[áa]klad/i.test(l);
+  const totH=findLabeled(lines,RX.total,exAmtLast,2);
+  if(totH)r.total=totH.v;
+  r.total_base=L(RX.base,exAmtLast,1);
+  r.total_vat=L(RX.vatt,exAmtLast,1);
+  r.advance_paid=L(RX.adv,exAmtLast,1);
+  r.rounding=L(RX.round,s=>{const a=amountsIn(s);const v=a.length?a[a.length-1].v:null;return v!=null&&Math.abs(v)<1?v:null},0);
+  if(r.advance_paid!=null)r.advance_paid=Math.abs(r.advance_paid);
+
+  // rekapitulace DPH
+  const cand={};
+  lines.forEach((ln,i)=>{
+    const pm=[...ln.matchAll(/(?<![\d,.])(\d{1,2})(?:[,.]0{1,2})?\s?%/g)];
+    for(const p of pm){const rate=+p[1];if(!VALID_RATES.includes(rate))continue;
+      const nums=amountsIn(ln.slice(0,p.index)+blank(p[0])+ln.slice(p.index+p[0].length)).map(a=>a.v).filter(v=>Math.abs(v)>=0.01);
+      for(let a=0;a<nums.length;a++)for(let b=a+1;b<nums.length;b++){const base=nums[a],vat=nums[b];
+        if(rate===0)continue;
+        if(Math.abs(base*rate/100-vat)<=Math.max(0.6,Math.abs(base)*0.0011)){const total=nums[b+1];
+          (cand[rate]??=[]).push({rate,base,vat,line:i,score:(/rekapitulace|sazba|z[áa]klad|DPH|VAT|MwSt|recap/i.test(lines.slice(Math.max(0,i-4),i+1).join(' '))?2:0)+(total!=null&&Math.abs(base+vat-total)<=1?1:0)})}}
+      if(rate===0&&nums.length&&/osvobozen|0\s?%|nepodl|mimo\s+předmět|reverse|přenesen/i.test(ln)){(cand[0]??=[]).push({rate:0,base:nums[0],vat:0,line:i,score:0})}}});
+  for(const [lab,re] of [['b',/z[áa]klad(?:\s+dan[ěe])?[^\n%\d]{0,20}(\d{1,2})\s?%/i],['v',/(?:DPH|da[nň])[^\n%\d]{0,20}(\d{1,2})\s?%/i]]){/* dvojřádkové formy */}
+  const bForm={},vForm={};
+  lines.forEach(ln=>{let x=ln.match(/z[áa]klad(?:\s+dan[ěe]|\s+DPH)?\s*(?:v\s+sazb[ěe]\s*)?(\d{1,2})\s?%[^\n\d-]*([-\d][\d .,']*\d)/i);if(x&&VALID_RATES.includes(+x[1]))bForm[+x[1]]=num(x[2]);
+    x=ln.match(/(?:DPH|da[nň])\s*(?:v\s+sazb[ěe]\s*)?(\d{1,2})\s?%[^\n\d-]*([-\d][\d .,']*\d)/i);if(x&&VALID_RATES.includes(+x[1])&&!/z[áa]klad/i.test(ln))vForm[+x[1]]=num(x[2])});
+  for(const k of Object.keys(bForm))if(vForm[k]!=null&&Math.abs(bForm[k]*k/100-vForm[k])<=Math.max(1,bForm[k]*0.002))(cand[k]??=[]).push({rate:+k,base:bForm[k],vat:vForm[k],score:3});
+  for(const k of Object.keys(cand)){const best=cand[k].sort((a,b)=>b.score-a.score||Math.abs(b.base)-Math.abs(a.base))[0];r.vat.push({rate:best.rate,base:r2(best.base),vat:r2(best.vat)})}
+  r.vat.sort((a,b)=>b.rate-a.rate);
+
+  // dopočty a záchranné heuristiky
+  const sumB=r.vat.length?r2(r.vat.reduce((a,v)=>a+v.base,0)):null,sumV=r.vat.length?r2(r.vat.reduce((a,v)=>a+v.vat,0)):null;
+  if(r.total_base==null&&sumB!=null)r.total_base=sumB;
+  if(r.total_vat==null&&sumV!=null)r.total_vat=sumV;
+  if(r.total==null){
+    const cands=[];lines.forEach(l=>{if(RX.total2.test(l)&&!notTotal(l)){const v=exAmtLast(l);if(v!=null)cands.push(v)}});
+    if(cands.length)r.total=Math.max(...cands.map(Math.abs))*(cands.some(v=>v<0)&&r.doc_type==='Dobropis'?-1:1);
+    else if(r.total_base!=null&&r.total_vat!=null)r.total=r2(r.total_base+r.total_vat-(r.advance_paid||0)+(r.rounding||0));
+  }
+  if(r.total!=null&&r.total_base!=null&&r.total_vat==null&&r.advance_paid==null){const v=r2(r.total-r.total_base-(r.rounding||0));if(v>=0&&r.total_base>0&&VALID_RATES.some(x=>Math.abs(r.total_base*x/100-v)<=1))r.total_vat=v}
+  if(r.total!=null&&r.total<0&&r.doc_type==='Faktura')r.doc_type='Dobropis';
+
+  // --- vlastní hledané údaje projektu
+  for(const lab of opts.customLabels||[]){if(!lab.trim())continue;const v=L(new RegExp(escRx(lab.trim())+'\\s*[:.]?','i'),exText,1);if(v)r.fields[lab.trim()]=v}
+  // --- obecné dvojice „popisek: hodnota"
+  let nf=0;
+  for(const ln of lines)for(const sg of segs(ln)){const mm=sg.match(/^\s*(\p{L}[\p{L}\d .\/()#&-]{1,40}?)\s*:\s*(\S.{0,140})$/u);if(!mm)continue;
+    const k=mm[1].trim().replace(/\s+/g,' '),v=mm[2].trim();if(KNOWN_KEY.test(k)||r.fields[k])continue;
+    const alnum=(v.match(/[\p{L}\d]/gu)||[]).length;if(alnum<1||alnum/v.length<0.4)continue;
+    if(++nf>60)break;r.fields[k]=v}
+  if(r.supplier_address)r.fields['Adresa dodavatele']=r.supplier_address;
+  if(r.customer_address)r.fields['Adresa odběratele']=r.customer_address;
+  delete r.supplier_address;delete r.customer_address;
+  r.confidence=confidence(r);
+  return r}
+
+function confidence(r){let sc=0;
+  if(r.invoice_no)sc+=15;if(r.supplier_ico&&icoOk(r.supplier_ico))sc+=20;else if(r.supplier_ico)sc+=6;
+  if(r.total!=null)sc+=20;if(r.issue_date)sc+=10;if(r.duzp)sc+=8;if(r.due_date)sc+=5;if(r.vs)sc+=4;if(r.supplier_name)sc+=6;
+  if(r.total_base!=null&&r.total_vat!=null&&r.total!=null&&Math.abs(r.total_base+r.total_vat-(r.advance_paid||0)+(r.rounding||0)-r.total)<=1)sc+=12;
+  return Math.min(100,sc)}
+
+/* ---------- QR Platba / QR Faktura ---------- */
+function parseQR(s){if(!s)return null;s=String(s).trim();
+  if(/^https?:/i.test(s)){const m=s.match(/(SPD|SID)\*[^\s]+/i);if(!m)return null;try{s=decodeURIComponent(m[0])}catch(e){s=m[0]}}
+  if(!/^(SPD|SID)\*/i.test(s))return null;
+  const parts=s.split('*'),kind=parts[0].toUpperCase(),kv={};
+  for(const p of parts.slice(2)){const i=p.indexOf(':');if(i<1)continue;let v=p.slice(i+1);try{v=decodeURIComponent(v.replace(/\+/g,'%2B'))}catch(e){}kv[p.slice(0,i).toUpperCase()]=v}
+  const d8=v=>v&&/^\d{8}$/.test(v)?mkDate(+v.slice(0,4),+v.slice(4,6),+v.slice(6)):null;
+  let r={fields:{},vat:[],items:[]};
+  if(kind==='SPD'){
+    if(kv.AM)r.total=num(kv.AM.replace(',', '.'));if(kv.CC)r.currency=kv.CC.toUpperCase();
+    if(kv.ACC){const [ib,bc]=kv.ACC.split('+');r.iban=ib.replace(/\s/g,'').toUpperCase();r.bank_account=ibanToCz(r.iban);if(bc)r.bic=bc}
+    if(kv['X-VS'])r.vs=kv['X-VS'];if(kv['X-KS'])r.ks=kv['X-KS'];if(kv['X-SS'])r.ss=kv['X-SS'];
+    if(kv.DT)r.due_date=d8(kv.DT);if(kv.MSG)r.fields['QR zpráva']=kv.MSG;if(kv.RN)r.fields['QR příjemce']=kv.RN;
+    if(kv['X-INV']){const inv=parseQR(kv['X-INV']);if(inv){const keep={total:r.total,currency:r.currency};r=mergeDoc(r,inv);if(keep.total!=null)r.fields['QR částka k úhradě']=String(keep.total)}}
+    r.fields['QR Platba']=s}
+  else{
+    if(kv.ID)r.invoice_no=kv.ID;if(kv.DD)r.issue_date=d8(kv.DD);if(kv.TA)r.total=num(kv.TA.replace(',', '.'));if(kv.VS)r.vs=kv.VS;
+    if(kv.VII)r.supplier_dic=normDic(kv.VII);if(kv.INI)r.supplier_ico=normIco(kv.INI);if(kv.VIR)r.customer_dic=normDic(kv.VIR);if(kv.INR)r.customer_ico=normIco(kv.INR);
+    if(kv.DUZP)r.duzp=d8(kv.DUZP);if(kv.DT)r.due_date=d8(kv.DT);if(kv.CC)r.currency=kv.CC.toUpperCase();if(kv.FX)r.fx_rate=num(kv.FX.replace(',', '.'));
+    if(kv.ON)r.order_no=kv.ON;if(kv.ACC){const [ib]=kv.ACC.split('+');r.iban=ib;r.bank_account=ibanToCz(ib)}
+    const td={0:'Nedaňový doklad',1:'Dobropis',2:'DDKPP',3:'Splátkový kalendář',4:'Platební kalendář',5:'Souhrnný daňový doklad',9:'Faktura'};if(kv.TD!=null&&td[kv.TD])r.doc_type=td[kv.TD];
+    const dd=r.issue_date||r.duzp||'2024-01-01',low=dd>='2024-01-01'?12:15;
+    for(const [b,t,rate] of [['TB0','T0',21],['TB1','T1',low],['TB2','T2',10]])if(kv[b]!=null)r.vat.push({rate,base:num(kv[b].replace(',', '.')),vat:num((kv[t]||'0').replace(',', '.'))});
+    if(kv.NTB!=null)r.vat.push({rate:0,base:num(kv.NTB.replace(',', '.')),vat:0});
+    r.fields['QR Faktura']=s}
+  r.format=kind==='SID'?'QR Faktura':'QR Platba';r.confidence=confidence(r);return r}
+
+function mergeDoc(a,b){if(!b)return a;if(!a)return b;const r={...a};
+  for(const [k,v] of Object.entries(b)){if(k==='fields')r.fields={...(a.fields||{}),...(v||{})};
+    else if(k==='vat'||k==='items'){if(v&&v.length)r[k]=v}
+    else if(k==='confidence'||k==='format')continue;
+    else if(v!=null&&v!=='')r[k]=v}
+  r.fields=r.fields||{};r.vat=r.vat||[];r.items=r.items||[];return r}
+
+/* ---------- XML ---------- */
+const kids=el=>{if(!el)return [];const o=[];for(let n=el.firstChild;n;n=n.nextSibling)if(n.nodeType===1)o.push(n);return o};
+const lname=n=>n.localName||String(n.nodeName).replace(/^.*:/,'');
+const ch=(el,name)=>kids(el).find(k=>lname(k)===name)||null;
+const chs=(el,name)=>kids(el).filter(k=>lname(k)===name);
+function at(el,path){let cur=el;for(const p of path.split('/')){cur=ch(cur,p);if(!cur)return null}return cur}
+function tx(el,path){const n=path?at(el,path):el;if(!n)return null;const t=String(n.textContent||'').trim();return t===''?null:t}
+function first(el,...paths){for(const p of paths){const v=tx(el,p);if(v!=null)return v}return null}
+function descAll(el,name){const o=[];const all=el.getElementsByTagName('*');for(let i=0;i<all.length;i++)if(lname(all[i])===name)o.push(all[i]);return o}
+function flatten(el,out,prefix='',depth=0,limit=200){for(const k of kids(el)){if(Object.keys(out).length>=limit)return;const name=prefix?prefix+' / '+lname(k):lname(k);
+  if(!kids(k).length){const v=String(k.textContent||'').trim();if(v&&v.length<300){let key=name.split(' / ').slice(-3).join(' / ');while(out[key]!=null)key+=' ·';out[key]=v}}
+  else if(depth<8)flatten(k,out,name,depth+1,limit)}}
+
+function decodeXml(buf){const u8=buf instanceof Uint8Array?buf:new Uint8Array(buf);
+  if(u8[0]===0xFF&&u8[1]===0xFE)return new TextDecoder('utf-16le').decode(u8);
+  if(u8[0]===0xFE&&u8[1]===0xFF)return new TextDecoder('utf-16be').decode(u8);
+  const headStr=String.fromCharCode(...u8.slice(0,300));const m=headStr.match(/encoding\s*=\s*["']([\w-]+)["']/i);
+  let enc=m?m[1].toLowerCase():'utf-8';if(enc==='cp1250')enc='windows-1250';
+  try{const u=new TextDecoder('utf-8',{fatal:true}).decode(u8);if(enc!=='utf-8'&&/[^\x00-\x7f]/.test(u))return u.replace(/^\uFEFF/,'')}catch(e){}
+  try{return new TextDecoder(enc).decode(u8).replace(/^﻿/,'')}catch(e){return new TextDecoder('utf-8').decode(u8).replace(/^﻿/,'')}}
+
+function partyIsdoc(p){const P=p&&(at(p,'Party')||p);if(!P)return {};
+  let dic=null;for(const ts of chs(P,'PartyTaxScheme')){const c=tx(ts,'CompanyID');const s=tx(ts,'TaxScheme')||'';if(c&&(!dic||/VAT|DPH/i.test(s)))dic=c}
+  const a=ch(P,'PostalAddress');const ct=ch(P,'Contact');
+  return {name:first(P,'PartyName/Name','PartyLegalEntity/RegistrationName'),ico:first(P,'PartyIdentification/ID','PartyIdentification/UserID','PartyLegalEntity/CompanyID'),dic,
+    addr:a?[[tx(a,'StreetName'),tx(a,'BuildingNumber')].filter(Boolean).join(' '),[tx(a,'PostalZone'),tx(a,'CityName')].filter(Boolean).join(' '),tx(a,'Country/Name')||tx(a,'Country/IdentificationCode')].filter(Boolean).join(', '):null,
+    contact:ct?[tx(ct,'Name'),tx(ct,'Telephone'),tx(ct,'ElectronicMail')].filter(Boolean).join(', '):null}}
+
+function parseIsdoc(root){
+  const types={'1':'Faktura','2':'Dobropis','3':'Vrubopis','4':'Zálohová faktura','5':'DDKPP','6':'Dobropis DDKPP','7':'Zjednodušený daňový doklad'};
+  const foreign=tx(root,'ForeignCurrencyCode');const local=tx(root,'LocalCurrencyCode')||'CZK';
+  const A=(el,name)=>el?num(foreign?(tx(el,name+'Curr')??tx(el,name)):tx(el,name)):null;
+  const sp=partyIsdoc(ch(root,'AccountingSupplierParty')||ch(root,'SellerSupplierParty'));
+  const cp=partyIsdoc(ch(root,'AccountingCustomerParty')||ch(root,'BuyerCustomerParty'));
+  const pms=chs(root,'PaymentMeans');let det=null,payCode=null;
+  for(const pm of pms)for(const pay of chs(pm,'Payment')){payCode=payCode||tx(pay,'PaymentMeansCode');const d=ch(pay,'Details');if(d&&!det)det=d}
+  const lmt=ch(root,'LegalMonetaryTotal');
+  const r={format:'ISDOC',fields:{},vat:[],items:[],
+    doc_type:types[tx(root,'DocumentType')]||'Faktura',invoice_no:tx(root,'ID'),uuid:tx(root,'UUID'),
+    issue_date:isoD(tx(root,'IssueDate')),duzp:isoD(tx(root,'TaxPointDate')),due_date:isoD(det&&tx(det,'PaymentDueDate')),
+    vs:det&&tx(det,'VariableSymbol'),ks:det&&tx(det,'ConstantSymbol'),ss:det&&tx(det,'SpecificSymbol'),
+    currency:foreign||local,fx_rate:foreign?(num(tx(root,'CurrRate'))/(num(tx(root,'RefCurrRate'))||1)):null,
+    supplier_name:sp.name,supplier_ico:normIco(sp.ico),supplier_dic:normDic(sp.dic),customer_name:cp.name,customer_ico:normIco(cp.ico),customer_dic:normDic(cp.dic),
+    bank_account:det&&tx(det,'ID')?(tx(det,'ID')+(tx(det,'BankCode')?'/'+tx(det,'BankCode'):'')):null,iban:det&&tx(det,'IBAN'),bic:det&&tx(det,'BIC'),
+    total_base:A(lmt,'TaxExclusiveAmount'),total_vat:null,total:A(lmt,'PayableAmount')??A(lmt,'TaxInclusiveAmount'),
+    rounding:A(lmt,'PayableRoundingAmount'),advance_paid:null,total_czk:null,confidence:100};
+  const claimed=A(lmt,'AlreadyClaimedTaxInclusiveAmount')||0,deposits=A(lmt,'PaidDepositsAmount')||0;
+  if(claimed||deposits)r.advance_paid=r2(claimed+deposits);
+  const taxIncl=A(lmt,'TaxInclusiveAmount');
+  for(const tt of chs(root,'TaxTotal')){const ta=A(tt,'TaxAmount');if(ta!=null)r.total_vat=r2((r.total_vat||0)+ta);
+    for(const s of chs(tt,'TaxSubTotal'))r.vat.push({rate:num(tx(s,'TaxCategory/Percent'))??0,base:A(s,'TaxableAmount'),vat:A(s,'TaxAmount')})}
+  if(r.total_vat==null&&taxIncl!=null&&r.total_base!=null)r.total_vat=r2(taxIncl-r.total_base);
+  if(foreign&&lmt){const loc=num(tx(lmt,'PayableAmount'));if(loc!=null)r.total_czk=loc}else r.total_czk=r.total;
+  const ord=at(root,'OrderReferences/OrderReference');if(ord){r.order_no=first(ord,'SalesOrderID','ExternalOrderID','ID')}
+  const ctr=at(root,'ContractReferences/ContractReference');if(ctr)r.contract_no=first(ctr,'ID');
+  const odr=at(root,'OriginalDocumentReferences/OriginalDocumentReference');if(odr)r.fields['Původní doklad']=first(odr,'ID');
+  const dl=at(root,'DeliveryNoteReferences/DeliveryNoteReference');if(dl)r.fields['Dodací list']=first(dl,'ID');
+  for(const n of chs(root,'Note'))if(tx(n))r.fields['Poznámka'+(r.fields['Poznámka']?' 2':'')]=tx(n);
+  if(tx(root,'VATApplicable')==='false')r.fields['Plátce DPH']='ne';
+  if(tx(root,'IssuingSystem'))r.fields['Vystaveno v systému']=tx(root,'IssuingSystem');
+  if(sp.addr)r.fields['Adresa dodavatele']=sp.addr;if(cp.addr)r.fields['Adresa odběratele']=cp.addr;if(sp.contact)r.fields['Kontakt dodavatele']=sp.contact;
+  if(payCode)r.fields['Způsob úhrady (kód)']=payCode;
+  const delivery=ch(root,'Delivery');if(delivery){const dp=partyIsdoc(delivery);if(dp.name||dp.addr)r.fields['Místo dodání']=[dp.name,dp.addr].filter(Boolean).join(', ')}
+  const ext=ch(root,'Extensions');if(ext)flatten(ext,r.fields,'Rozšíření');
+  let i=0;for(const l of descAll(root,'InvoiceLine')){i++;const q=ch(l,'InvoicedQuantity');
+    r.items.push({line_no:num(tx(l,'ID'))||i,description:first(l,'Item/Description','Item/Name')||tx(l,'Note'),qty:num(q&&tx(q)),unit:q?q.getAttribute('unitCode'):null,
+      unit_price:A(l,'UnitPrice'),vat_rate:num(tx(l,'ClassifiedTaxCategory/Percent')),amount:A(l,'LineExtensionAmount'),
+      vat:foreign?num(tx(l,'LineExtensionTaxAmountCurr')):num(tx(l,'LineExtensionTaxAmount')),amount_incl:foreign?num(tx(l,'LineExtensionAmountTaxInclusiveCurr')):num(tx(l,'LineExtensionAmountTaxInclusive')),code:first(l,'Item/SellersItemIdentification/ID','Item/CatalogueItemIdentification/ID')})}
+  return r}
+
+function parseUbl(root){
+  const credit=lname(root)==='CreditNote';const tc=tx(root,'InvoiceTypeCode')||tx(root,'CreditNoteTypeCode');
+  const sp=partyIsdoc(ch(root,'AccountingSupplierParty')),cp=partyIsdoc(ch(root,'AccountingCustomerParty'));
+  const lmt=ch(root,'LegalMonetaryTotal');const pm=ch(root,'PaymentMeans');
+  const r={format:'UBL',fields:{},vat:[],items:[],doc_type:credit||tc==='381'?'Dobropis':tc==='386'?'Zálohová faktura':'Faktura',
+    invoice_no:tx(root,'ID'),uuid:tx(root,'UUID'),issue_date:isoD(tx(root,'IssueDate')),duzp:isoD(first(root,'TaxPointDate','Delivery/ActualDeliveryDate','InvoicePeriod/EndDate')),
+    due_date:isoD(first(root,'DueDate','PaymentMeans/PaymentDueDate','PaymentTerms/PaymentDueDate')),currency:tx(root,'DocumentCurrencyCode')||'EUR',
+    supplier_name:sp.name,supplier_ico:normIco(sp.ico),supplier_dic:normDic(sp.dic),customer_name:cp.name,customer_ico:normIco(cp.ico),customer_dic:normDic(cp.dic),
+    vs:pm&&tx(pm,'PaymentID'),iban:pm&&tx(pm,'PayeeFinancialAccount/ID'),bic:pm&&first(pm,'PayeeFinancialAccount/FinancialInstitutionBranch/ID'),
+    total_base:num(tx(lmt,'TaxExclusiveAmount')),total:num(tx(lmt,'PayableAmount'))??num(tx(lmt,'TaxInclusiveAmount')),advance_paid:num(tx(lmt,'PrepaidAmount')),rounding:num(tx(lmt,'PayableRoundingAmount')),
+    order_no:tx(root,'OrderReference/ID'),contract_no:tx(root,'ContractDocumentReference/ID'),confidence:100};
+  if(r.iban&&!ibanOk(r.iban)){r.bank_account=r.iban;r.iban=null}else if(r.iban)r.bank_account=ibanToCz(r.iban);
+  for(const tt of chs(root,'TaxTotal')){const ta=num(tx(tt,'TaxAmount'));if(ta!=null&&r.total_vat==null)r.total_vat=ta;
+    for(const s of chs(tt,'TaxSubtotal'))r.vat.push({rate:num(first(s,'TaxCategory/Percent','Percent'))??0,base:num(tx(s,'TaxableAmount')),vat:num(tx(s,'TaxAmount'))})}
+  for(const n of chs(root,'Note'))if(tx(n))r.fields['Poznámka']=tx(n);
+  if(sp.addr)r.fields['Adresa dodavatele']=sp.addr;if(cp.addr)r.fields['Adresa odběratele']=cp.addr;
+  if(tx(root,'BuyerReference'))r.fields['Reference odběratele']=tx(root,'BuyerReference');
+  if(tx(root,'ProjectReference/ID'))r.fields['Projekt']=tx(root,'ProjectReference/ID');
+  if(tx(root,'AccountingCost'))r.fields['Nákladové středisko']=tx(root,'AccountingCost');
+  let i=0;for(const l of [...chs(root,'InvoiceLine'),...chs(root,'CreditNoteLine')]){i++;const q=ch(l,'InvoicedQuantity')||ch(l,'CreditedQuantity');
+    r.items.push({line_no:num(tx(l,'ID'))||i,description:first(l,'Item/Name','Item/Description'),qty:num(q&&tx(q)),unit:q?q.getAttribute('unitCode'):null,unit_price:num(tx(l,'Price/PriceAmount')),
+      vat_rate:num(tx(l,'Item/ClassifiedTaxCategory/Percent')),amount:num(tx(l,'LineExtensionAmount')),code:first(l,'Item/SellersItemIdentification/ID')})}
+  if(credit){for(const k of ['total_base','total_vat','total'])if(r[k]>0)r[k]=-r[k]}
+  return r}
+
+function parseCii(root){
+  const doc=ch(root,'ExchangedDocument'),tr=ch(root,'SupplyChainTradeTransaction');
+  const ag=ch(tr,'ApplicableHeaderTradeAgreement'),dl=ch(tr,'ApplicableHeaderTradeDelivery'),st=ch(tr,'ApplicableHeaderTradeSettlement');
+  const party=p=>{if(!p)return {};let dic=null;for(const t of chs(p,'SpecifiedTaxRegistration')){const id=ch(t,'ID');if(id&&(!dic||id.getAttribute('schemeID')==='VA'))dic=tx(id)}
+    const a=ch(p,'PostalTradeAddress');return {name:tx(p,'Name'),ico:first(p,'SpecifiedLegalOrganization/ID','ID'),dic,addr:a?[tx(a,'LineOne'),[tx(a,'PostcodeCode'),tx(a,'CityName')].filter(Boolean).join(' '),tx(a,'CountryID')].filter(Boolean).join(', '):null}};
+  const sp=party(ch(ag,'SellerTradeParty')),cp=party(ch(ag,'BuyerTradeParty'));const ms=ch(st,'SpecifiedTradeSettlementHeaderMonetarySummation');
+  const tc=tx(doc,'TypeCode');
+  const r={format:'Factur-X/ZUGFeRD',fields:{},vat:[],items:[],doc_type:tc==='381'?'Dobropis':tc==='386'?'Zálohová faktura':'Faktura',invoice_no:tx(doc,'ID'),
+    issue_date:isoD(tx(doc,'IssueDateTime/DateTimeString')),duzp:isoD(tx(dl,'ActualDeliverySupplyChainEvent/OccurrenceDateTime/DateTimeString')),
+    due_date:isoD(tx(st,'SpecifiedTradePaymentTerms/DueDateDateTime/DateTimeString')),currency:tx(st,'InvoiceCurrencyCode'),
+    supplier_name:sp.name,supplier_ico:normIco(sp.ico),supplier_dic:normDic(sp.dic),customer_name:cp.name,customer_ico:normIco(cp.ico),customer_dic:normDic(cp.dic),
+    vs:tx(st,'PaymentReference'),iban:tx(st,'SpecifiedTradeSettlementPaymentMeans/PayeePartyCreditorFinancialAccount/IBANID'),
+    total_base:num(tx(ms,'TaxBasisTotalAmount')),total_vat:num(tx(ms,'TaxTotalAmount')),total:num(tx(ms,'DuePayableAmount'))??num(tx(ms,'GrandTotalAmount')),
+    advance_paid:num(tx(ms,'TotalPrepaidAmount')),rounding:num(tx(ms,'RoundingAmount')),order_no:tx(ag,'BuyerOrderReferencedDocument/IssuerAssignedID'),
+    contract_no:tx(ag,'ContractReferencedDocument/IssuerAssignedID'),confidence:100};
+  if(r.iban)r.bank_account=ibanToCz(r.iban);
+  for(const t of chs(st,'ApplicableTradeTax'))r.vat.push({rate:num(tx(t,'RateApplicablePercent'))??0,base:num(tx(t,'BasisAmount')),vat:num(tx(t,'CalculatedAmount'))});
+  for(const n of chs(doc,'IncludedNote'))if(tx(n,'Content'))r.fields['Poznámka']=tx(n,'Content');
+  if(sp.addr)r.fields['Adresa dodavatele']=sp.addr;if(cp.addr)r.fields['Adresa odběratele']=cp.addr;
+  let i=0;for(const l of chs(tr,'IncludedSupplyChainTradeLineItem')){i++;const q=at(l,'SpecifiedLineTradeDelivery/BilledQuantity');
+    r.items.push({line_no:num(tx(l,'AssociatedDocumentLineDocument/LineID'))||i,description:tx(l,'SpecifiedTradeProduct/Name'),qty:num(q&&tx(q)),unit:q?q.getAttribute('unitCode'):null,
+      unit_price:num(tx(l,'SpecifiedLineTradeAgreement/NetPriceProductTradePrice/ChargeAmount')),vat_rate:num(tx(l,'SpecifiedLineTradeSettlement/ApplicableTradeTax/RateApplicablePercent')),
+      amount:num(tx(l,'SpecifiedLineTradeSettlement/SpecifiedTradeSettlementLineMonetarySummation/LineTotalAmount')),code:tx(l,'SpecifiedTradeProduct/SellerAssignedID')})}
+  return r}
+
+function parsePohoda(root){const out=[];
+  for(const inv of descAll(root,'invoice')){const h=ch(inv,'invoiceHeader');if(!h)continue;const type=tx(h,'invoiceType')||'';
+    const received=/^received/i.test(type);const pa=at(h,'partnerIdentity/address');
+    const P={name:pa&&first(pa,'company','name'),ico:pa&&tx(pa,'ico'),dic:pa&&tx(pa,'dic'),addr:pa?[tx(pa,'street'),[tx(pa,'zip'),tx(pa,'city')].filter(Boolean).join(' ')].filter(Boolean).join(', '):null};
+    const date=isoD(tx(h,'date')),low=(date||'2024')>='2024-01-01'?12:15;
+    const sm=ch(inv,'invoiceSummary'),hc=sm&&ch(sm,'homeCurrency'),fc=sm&&ch(sm,'foreignCurrency');
+    const r={format:'Pohoda XML',fields:{},vat:[],items:[],doc_type:/Credit/i.test(type)?'Dobropis':/Advance/i.test(type)?'Zálohová faktura':/Commitment|Proforma/i.test(type)?'Jiný':'Faktura',
+      invoice_no:first(h,'number/numberRequested','number/ids')||tx(h,'symVar'),vs:tx(h,'symVar'),issue_date:date,duzp:isoD(tx(h,'dateTax')),due_date:isoD(tx(h,'dateDue')),
+      order_no:first(h,'numberOrder'),confidence:100,currency:fc?(first(fc,'currency/ids')||'CZK'):'CZK'};
+    if(received){Object.assign(r,{supplier_name:P.name,supplier_ico:normIco(P.ico),supplier_dic:normDic(P.dic)});if(P.addr)r.fields['Adresa dodavatele']=P.addr}
+    else{Object.assign(r,{customer_name:P.name,customer_ico:normIco(P.ico),customer_dic:normDic(P.dic)});if(P.addr)r.fields['Adresa odběratele']=P.addr;r.fields['Směr']='vydaná faktura'}
+    if(hc){const g=n=>num(tx(hc,n));const rows=[[21,'priceHigh','priceHighVAT'],[low,'priceLow','priceLowVAT'],[10,'price3','price3VAT']];
+      for(const [rate,b,v] of rows)if(g(b))r.vat.push({rate,base:g(b),vat:g(v)||0});if(g('priceNone'))r.vat.push({rate:0,base:g('priceNone'),vat:0});
+      r.total_base=r2(r.vat.reduce((a,v)=>a+v.base,0));r.total_vat=r2(r.vat.reduce((a,v)=>a+v.vat,0));
+      const rnd=num(tx(hc,'round/priceRound'));if(rnd)r.rounding=rnd;r.total=r2(r.total_base+r.total_vat+(rnd||0));r.total_czk=r.total}
+    if(fc){r.fx_rate=num(tx(fc,'rate'));const ps=num(tx(fc,'priceSum'));if(ps!=null){r.total_czk=r.total;r.total=ps}}
+    if(tx(h,'text'))r.fields['Text dokladu']=tx(h,'text');if(tx(h,'note'))r.fields['Poznámka']=tx(h,'note');
+    if(tx(h,'centre/ids'))r.fields['Středisko']=tx(h,'centre/ids');if(tx(h,'activity/ids'))r.fields['Činnost']=tx(h,'activity/ids');if(tx(h,'contract/ids'))r.contract_no=tx(h,'contract/ids');
+    if(tx(h,'accounting/ids'))r.fields['Předkontace']=tx(h,'accounting/ids');
+    const acc=at(h,'account');if(acc&&tx(acc,'accountNo'))r.bank_account=tx(acc,'accountNo')+(tx(acc,'bankCode')?'/'+tx(acc,'bankCode'):'');
+    const rmap={high:21,low,third:10,none:0};let i=0;
+    for(const it of descAll(inv,'invoiceItem')){i++;const hh=ch(it,'homeCurrency');
+      r.items.push({line_no:i,description:tx(it,'text'),qty:num(tx(it,'quantity')),unit:tx(it,'unit'),unit_price:hh&&num(tx(hh,'unitPrice')),vat_rate:rmap[tx(it,'rateVAT')]??null,amount:hh&&num(tx(hh,'price')),code:tx(it,'code')})}
+    out.push(r)}
+  return out}
+
+function parseXmlDocs(str){
+  if(typeof DOMParser==='undefined')throw new Error('DOMParser není k dispozici');
+  const d=new DOMParser().parseFromString(String(str).replace(/^﻿/,''),'text/xml');const root=d.documentElement;
+  if(!root||lname(root)==='parsererror'||d.getElementsByTagName('parsererror').length)throw new Error('Neplatné XML');
+  const name=lname(root),ns=root.namespaceURI||'';
+  if(name==='Invoice'&&/isdoc/i.test(ns))return [parseIsdoc(root)];
+  if((name==='Invoice'||name==='CreditNote')&&/ubl|oasis/i.test(ns))return [parseUbl(root)];
+  if(name==='CrossIndustryInvoice'||name==='CrossIndustryDocument')return [parseCii(root)];
+  if(/stormware|pohoda/i.test(ns)||name==='dataPack'||name==='responsePack'){const p=parsePohoda(root);if(p.length)return p}
+  for(const n of descAll(root,'Invoice'))if(/isdoc/i.test(n.namespaceURI||''))return [parseIsdoc(n)];
+  if(name==='Invoice'&&ch(root,'AccountingSupplierParty'))return [parseIsdoc(root)];
+  // obecné XML: převod na text "klíč: hodnota" + textová heuristika
+  const f={};flatten(root,f,'',0,400);
+  const text=Object.entries(f).map(([k,v])=>k.split(' / ').pop()+': '+v).join('\n');
+  const r=parseText(text);r.format='XML ('+name+')';
+  for(const [k,v] of Object.entries(f).slice(0,120))r.fields['XML '+k]=v;
+  return [r]}
+
+function finalizeDoc(r){r.fields=r.fields||{};r.vat=(r.vat||[]).filter(v=>v.base!=null||v.vat!=null);r.items=r.items||[];
+  for(const k of ['supplier_ico','customer_ico'])if(r[k])r[k]=normIco(r[k]);
+  for(const k of ['supplier_dic','customer_dic'])if(r[k])r[k]=normDic(r[k]);
+  for(const k of ['issue_date','duzp','due_date'])if(r[k])r[k]=isoD(r[k]);
+  for(const k of ['total_base','total_vat','total','advance_paid','rounding','total_czk','fx_rate'])if(r[k]!=null)r[k]=num(r[k]);
+  if(r.total_base==null&&r.vat.length)r.total_base=r2(r.vat.reduce((a,v)=>a+(v.base||0),0));
+  if(r.total_vat==null&&r.vat.length)r.total_vat=r2(r.vat.reduce((a,v)=>a+(v.vat||0),0));
+  if(r.total==null&&r.total_base!=null&&r.total_vat!=null)r.total=r2(r.total_base+r.total_vat-(r.advance_paid||0)+(r.rounding||0));
+  r.currency=(r.currency||'CZK').toUpperCase().replace('KČ','CZK');
+  if(r.total_czk==null)r.total_czk=r.currency==='CZK'?r.total:(r.fx_rate&&r.total!=null?r2(r.total*r.fx_rate):null);
+  if(r.iban&&!r.bank_account)r.bank_account=ibanToCz(r.iban);
+  if(r.invoice_no)r.invoice_no=String(r.invoice_no).trim();
+  if(r.confidence==null)r.confidence=confidence(r);
+  return r}
+
+const CORE={num,r2,isoD,datesIn,amountsIn,icoOk,normIco,normDic,ibanOk,ibanToCz,czAccOk,parseText,parseQR,mergeDoc,parseXmlDocs,decodeXml,finalizeDoc,confidence,VALID_RATES};
+
+
+</script>
+<script>
+"use strict";
+/* ======================= APLIKACE ======================= */
+if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const DEF={lang:'ces+eng+deu',workers:Math.min(4,Math.max(1,(navigator.hardwareConcurrency||4)>>1)),thr:75,pages:4,scale:2400,qr:true,split:false,ocrText:false,ares:true,key:'',model:'claude-sonnet-5-5',aiMode:'image',aiAll:false};
+let S={...DEF};try{Object.assign(S,JSON.parse(localStorage.getItem('af_set')||'{}'))}catch(e){}
+let SQL,db,project='',P={},queue=[],inflight=0,running=false,stopFlag=false,page=0,sort={k:'id',d:-1};const PG=100;
+const fileMap=new Map();let dirHandle=null;const failed=[];
+
+/* ---------- schéma ---------- */
+const INV_COLS={doc_type:'TEXT',format:'TEXT',invoice_no:'TEXT',uuid:'TEXT',vs:'TEXT',ks:'TEXT',ss:'TEXT',order_no:'TEXT',contract_no:'TEXT',
+  supplier_name:'TEXT',supplier_ico:'TEXT',supplier_dic:'TEXT',customer_name:'TEXT',customer_ico:'TEXT',customer_dic:'TEXT',
+  issue_date:'TEXT',duzp:'TEXT',due_date:'TEXT',currency:'TEXT',fx_rate:'REAL',total_base:'REAL',total_vat:'REAL',rounding:'REAL',advance_paid:'REAL',total:'REAL',total_czk:'REAL',
+  bank_account:'TEXT',iban:'TEXT',bic:'TEXT',cost_category:'TEXT',folder:'TEXT',page:'INTEGER',confidence:'REAL',sources:'TEXT',reviewed:'INTEGER DEFAULT 0',note:'TEXT'};
+const SCHEMA=`
+CREATE TABLE IF NOT EXISTS projects(name TEXT PRIMARY KEY, created TEXT);
+CREATE TABLE IF NOT EXISTS project_settings(project TEXT, key TEXT, value TEXT, PRIMARY KEY(project,key));
+CREATE TABLE IF NOT EXISTS files(id INTEGER PRIMARY KEY, project TEXT, sha256 TEXT, path TEXT, name TEXT, size INTEGER, mime TEXT,
+  status TEXT, method TEXT, pages INTEGER, docs INTEGER, confidence REAL, error TEXT, processed_at TEXT, ms INTEGER, UNIQUE(project,sha256));
+CREATE TABLE IF NOT EXISTS file_paths(file_id INTEGER, path TEXT, UNIQUE(file_id,path));
+CREATE TABLE IF NOT EXISTS invoices(id INTEGER PRIMARY KEY, file_id INTEGER, project TEXT);
+CREATE TABLE IF NOT EXISTS invoice_vat(invoice_id INTEGER, rate REAL, base REAL, vat REAL);
+CREATE TABLE IF NOT EXISTS invoice_items(invoice_id INTEGER, line_no INTEGER, code TEXT, description TEXT, qty REAL, unit TEXT, unit_price REAL, vat_rate REAL, amount REAL, vat REAL, amount_incl REAL);
+CREATE TABLE IF NOT EXISTS invoice_fields(invoice_id INTEGER, key TEXT, value TEXT);
+CREATE TABLE IF NOT EXISTS audit_flags(invoice_id INTEGER, code TEXT, severity TEXT, message TEXT);
+CREATE TABLE IF NOT EXISTS raw_text(file_id INTEGER PRIMARY KEY, text TEXT, qr TEXT);
+CREATE TABLE IF NOT EXISTS ares(ico TEXT PRIMARY KEY, name TEXT, address TEXT, dic TEXT, ended TEXT, legal_form TEXT, fetched TEXT, error TEXT);`;
+const SCHEMA2=`
+CREATE INDEX IF NOT EXISTS ix_inv_proj ON invoices(project);
+CREATE INDEX IF NOT EXISTS ix_inv_file ON invoices(file_id);
+CREATE INDEX IF NOT EXISTS ix_inv_sup ON invoices(supplier_ico,invoice_no);
+CREATE INDEX IF NOT EXISTS ix_fld ON invoice_fields(invoice_id);
+CREATE INDEX IF NOT EXISTS ix_vat ON invoice_vat(invoice_id);
+CREATE INDEX IF NOT EXISTS ix_itm ON invoice_items(invoice_id);
+CREATE INDEX IF NOT EXISTS ix_flag ON audit_flags(invoice_id);
+CREATE INDEX IF NOT EXISTS ix_files ON files(project,status);
+DROP VIEW IF EXISTS v_by_supplier; DROP VIEW IF EXISTS v_invoices;
+CREATE VIEW v_by_supplier AS SELECT project, supplier_ico, MAX(supplier_name) supplier_name, currency, COUNT(*) invoices,
+  ROUND(SUM(total_base),2) base, ROUND(SUM(total_vat),2) vat, ROUND(SUM(total),2) total, ROUND(SUM(total_czk),2) total_czk FROM invoices GROUP BY project,supplier_ico,currency;
+CREATE VIEW v_invoices AS SELECT i.*, f.path, f.method, (SELECT COUNT(*) FROM audit_flags a WHERE a.invoice_id=i.id) flags FROM invoices i JOIN files f ON f.id=i.file_id;`;
+function migrate(){db.run(SCHEMA);
+  const have=new Set(qa('PRAGMA table_info(invoices)').map(c=>c.name));
+  for(const [c,t] of Object.entries(INV_COLS))if(!have.has(c))db.run(`ALTER TABLE invoices ADD COLUMN ${c} ${t}`);
+  for(const [tb,cols] of [['files',{pages:'INTEGER',docs:'INTEGER',ms:'INTEGER'}],['raw_text',{qr:'TEXT'}],['invoice_items',{code:'TEXT',vat:'REAL',amount_incl:'REAL'}]]){
+    const h=new Set(qa(`PRAGMA table_info(${tb})`).map(c=>c.name));for(const [c,t] of Object.entries(cols))if(!h.has(c))db.run(`ALTER TABLE ${tb} ADD COLUMN ${c} ${t}`)}
+  db.run(SCHEMA2)}
+
+/* ---------- úložiště v prohlížeči ---------- */
+function idb(){return new Promise((res,rej)=>{const o=indexedDB.open('audit_faktur',2);o.onupgradeneeded=()=>{for(const s of ['db','handles'])if(!o.result.objectStoreNames.contains(s))o.result.createObjectStore(s)};o.onsuccess=()=>res(o.result);o.onerror=()=>rej(o.error)})}
+async function idbPut(store,key,val){const d=await idb();const tx=d.transaction(store,'readwrite');tx.objectStore(store).put(val,key);await new Promise((r,j)=>{tx.oncomplete=r;tx.onerror=()=>j(tx.error)})}
+async function idbGet(store,key){const d=await idb();return new Promise(r=>{const g=d.transaction(store).objectStore(store).get(key);g.onsuccess=()=>r(g.result);g.onerror=()=>r(null)})}
+let lastSave=0,saving=false;
+async function persist(){if(saving)return;saving=true;try{await idbPut('db','main',db.export());lastSave=Date.now()}catch(e){log('Uložení do prohlížeče selhalo: '+e.message+'. Stáhněte si zálohu .sqlite.')}finally{saving=false}}
+let saveT;function saveSoon(){clearTimeout(saveT);saveT=setTimeout(persist,1500)}
+
+const q1=(sql,p=[])=>{const st=db.prepare(sql);st.bind(p);const r=st.step()?st.getAsObject():null;st.free();return r};
+const qa=(sql,p=[])=>{const st=db.prepare(sql);st.bind(p);const out=[];while(st.step())out.push(st.getAsObject());st.free();return out};
+const run=(sql,p=[])=>db.run(sql,p);
+const lastId=()=>q1('SELECT last_insert_rowid() id').id;
+
+/* ---------- pomůcky ---------- */
+function log(m){const l=$('#log');l.textContent+='\n'+new Date().toLocaleTimeString('cs-CZ')+'  '+m;if(l.textContent.length>200000)l.textContent=l.textContent.slice(-150000);l.scrollTop=1e9}
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>n==null||n===''||isNaN(n)?'':Number(n).toLocaleString('cs-CZ',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtI=n=>n==null?'':Number(n).toLocaleString('cs-CZ');
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(t._t);t._t=setTimeout(()=>t.hidden=true,3000)}
+async function sha(buf){const h=await crypto.subtle.digest('SHA-256',buf);return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('')}
+function b64(buf){const u=new Uint8Array(buf);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const ext=n=>(String(n).split('.').pop()||'').toLowerCase();
+const ACCEPT=/\.(pdf|jpe?g|png|tiff?|bmp|webp|gif|isdoc|isdocx|xml|zip|txt)$/i;
+
+/* ---------- nastavení projektu ---------- */
+function loadP(){P={};for(const r of qa('SELECT key,value FROM project_settings WHERE project=?',[project]))P[r.key]=r.value;
+  P.ownIcos=(P.own||'').split(/[,;\s]+/).map(CORE.normIco).filter(Boolean);
+  P.labels=(P.labels||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  P.rules=(P.rules||'').split('\n').map(l=>l.split('=>')).filter(x=>x.length===2&&x[0].trim()).map(([a,b])=>({p:a.trim().toLowerCase(),c:b.trim()}));
+  P.fx={};for(const m of (P.fxs||'').matchAll(/([A-Z]{3})\s*=\s*([\d.,]+)/gi))P.fx[m[1].toUpperCase()]=CORE.num(m[2])}
+function saveP(k,v){run('INSERT OR REPLACE INTO project_settings VALUES(?,?,?)',[project,k,v])}
+
+/* ---------- PDF ---------- */
+function pdfLayoutText(items){const rows=[];
+  for(const it of items){if(!it.str||!it.str.trim())continue;const y=it.transform[5],x=it.transform[4],h=Math.abs(it.transform[3])||10;
+    let row=rows.find(r=>Math.abs(r.y-y)<Math.max(2,h*0.45));if(!row){row={y,h,items:[]};rows.push(row)}row.items.push({x,w:it.width||it.str.length*h*0.5,s:it.str,h})}
+  rows.sort((a,b)=>b.y-a.y);
+  return rows.map(r=>{r.items.sort((a,b)=>a.x-b.x);let out='',endX=null;
+    for(const it of r.items){if(endX!=null){const gap=it.x-endX,cw=it.h*0.5;out+=gap>cw*3?'     ':gap>cw*0.25?' ':''}out+=it.s;endX=it.x+it.w}return out}).join('\n')}
+function textQuality(t){const s=t.replace(/\s/g,'');if(s.length<60)return 0;const good=(s.match(/[\p{L}\d.,:;%\/()\-+€$&@#*'"]/gu)||[]).length;const words=(t.match(/\p{L}{3,}/gu)||[]).length;return good/s.length*(words>8?1:0.5)}
+async function renderPage(pdf,n,width){const pg=await pdf.getPage(n);const vp1=pg.getViewport({scale:1});const sc=Math.min(5,Math.max(1,width/vp1.width));
+  const vp=pg.getViewport({scale:sc});const cv=document.createElement('canvas');cv.width=Math.round(vp.width);cv.height=Math.round(vp.height);
+  const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);await pg.render({canvasContext:ctx,viewport:vp}).promise;pg.cleanup();return cv}
+
+/* ---------- obrázky ---------- */
+async function imageCanvases(file,buf,maxPages){
+  const e=ext(file.name);
+  if(e==='tif'||e==='tiff'){if(!window.UTIF)throw new Error('Knihovna pro TIFF se nenačetla');const ifds=UTIF.decode(buf);const out=[];
+    for(const ifd of ifds.slice(0,maxPages)){UTIF.decodeImage(buf,ifd,ifds);const rgba=UTIF.toRGBA8(ifd);const cv=document.createElement('canvas');cv.width=ifd.width;cv.height=ifd.height;
+      cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(rgba.buffer),ifd.width,ifd.height),0,0);out.push(cv)}return out}
+  let bmp;try{bmp=await createImageBitmap(file,{imageOrientation:'from-image'})}catch(err){throw new Error('Obrázek nelze otevřít (HEIC a poškozené soubory nejsou podporovány)')}
+  const cv=document.createElement('canvas');cv.width=bmp.width;cv.height=bmp.height;cv.getContext('2d').drawImage(bmp,0,0);bmp.close&&bmp.close();return [cv]}
+function prepCanvas(src){const target=+S.scale||2400;let w=src.width,h=src.height;const k=w<target*0.8?target/w:(w>target*1.6?target*1.3/w:1);
+  const cv=document.createElement('canvas');cv.width=Math.round(w*k);cv.height=Math.round(h*k);const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingQuality='high';ctx.drawImage(src,0,0,cv.width,cv.height);
+  const id=ctx.getImageData(0,0,cv.width,cv.height),d=id.data,hist=new Uint32Array(256);
+  for(let i=0;i<d.length;i+=4){const g=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)|0;d[i]=g;hist[g]++}
+  const tot=d.length/4;let lo=0,hi=255,acc=0;for(;lo<255;lo++){acc+=hist[lo];if(acc>tot*0.01)break}acc=0;for(;hi>0;hi--){acc+=hist[hi];if(acc>tot*0.01)break}
+  const span=Math.max(1,hi-lo);for(let i=0;i<d.length;i+=4){let g=(d[i]-lo)*255/span;g=g<0?0:g>255?255:g;d[i]=d[i+1]=d[i+2]=g}
+  ctx.putImageData(id,0,0);return cv}
+function scanQR(src){if(!window.jsQR)return [];const found=new Set();
+  const tryRegion=(sx,sy,sw,sh,maxDim)=>{const k=Math.min(1,maxDim/Math.max(sw,sh));const cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(sw*k));cv.height=Math.max(1,Math.round(sh*k));
+    const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(src,sx,sy,sw,sh,0,0,cv.width,cv.height);const id=ctx.getImageData(0,0,cv.width,cv.height);
+    const r=jsQR(id.data,cv.width,cv.height,{inversionAttempts:'attemptBoth'});if(r&&r.data)found.add(r.data)};
+  try{const W=src.width,H=src.height;tryRegion(0,0,W,H,1600);
+    if(![...found].some(x=>/^(SPD|SID)\*/i.test(x)))for(const [fx,fy] of [[0,.5],[.5,.5],[0,0],[.5,0],[.25,.25]])tryRegion(W*fx,H*fy,W*.5,H*.5,1200)}catch(e){}
+  return [...found]}
+
+/* ---------- OCR ---------- */
+let ocrPool=null,ocrLang=null,ocrInit=null;
+async function getPool(){if(ocrPool&&ocrLang===S.lang)return ocrPool;if(ocrInit)return ocrInit;
+  ocrInit=(async()=>{if(ocrPool){try{await ocrPool.terminate()}catch(e){}}if(!window.Tesseract)throw new Error('OCR knihovna se nenačetla (je potřeba internet)');
+    log('Spouštím OCR ('+S.lang+', '+S.workers+' vlákna), první spuštění stahuje jazyková data…');
+    const sch=Tesseract.createScheduler();
+    for(let i=0;i<Math.max(1,+S.workers);i++){const w=await Tesseract.createWorker(S.lang,1);await w.setParameters({preserve_interword_spaces:'1',user_defined_dpi:'300'});sch.addWorker(w)}
+    ocrPool=sch;ocrLang=S.lang;ocrInit=null;return sch})();
+  return ocrInit}
+async function ocrCanvas(cv){const p=await getPool();const {data}=await p.addJob('recognize',prepCanvas(cv),{rotateAuto:true});return {text:data.text||'',conf:data.confidence||0}}
+
+/* ---------- AI ---------- */
+const AI_PROMPT=`Jsi pečlivý finanční auditor. Z přiloženého účetního dokladu vytěž údaje a vrať POUZE jeden JSON objekt bez dalšího textu:
+{"doc_type":"Faktura|Dobropis|Vrubopis|Zálohová faktura|DDKPP|Účtenka|Dodací list|Objednávka|Jiný","invoice_no":null,"vs":null,"ks":null,"ss":null,"order_no":null,"contract_no":null,
+"supplier_name":null,"supplier_ico":null,"supplier_dic":null,"customer_name":null,"customer_ico":null,"customer_dic":null,
+"issue_date":"YYYY-MM-DD","duzp":"YYYY-MM-DD","due_date":"YYYY-MM-DD","currency":"CZK","fx_rate":null,
+"total_base":null,"total_vat":null,"advance_paid":null,"rounding":null,"total":null,"bank_account":null,"iban":null,"bic":null,
+"vat":[{"rate":21,"base":0,"vat":0}],"items":[{"line_no":1,"code":null,"description":"","qty":null,"unit":null,"unit_price":null,"vat_rate":null,"amount":null}],
+"fields":{"název údaje":"hodnota"}}
+Pravidla: čísla jako čísla s desetinnou tečkou; total = částka k úhradě; total_base = základ celkem; neznámé hodnoty null, nic nevymýšlej.
+Dodavatel je ten, kdo doklad vystavil. Do "fields" dej vše ostatní užitečné pro audit (kód projektu, středisko, natáčecí den, číslo smlouvy, zakázka, místo plnění, období plnění, poznámky, razítko, podpis, ručně psané poznámky).`;
+async function aiExtract(ctx){
+  const content=[];
+  if(S.aiMode==='image'){
+    if(ctx.pdfBuf&&ctx.pdfBuf.byteLength<20e6)content.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:b64(ctx.pdfBuf)}});
+    else for(const cv of (ctx.canvases||[]).slice(0,5)){const k=Math.min(1,1800/Math.max(cv.width,cv.height));const c2=document.createElement('canvas');c2.width=cv.width*k;c2.height=cv.height*k;c2.getContext('2d').drawImage(cv,0,0,c2.width,c2.height);
+      content.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:c2.toDataURL('image/jpeg',0.85).split(',')[1]}})}}
+  if(ctx.text)content.push({type:'text',text:'Text dokladu získaný OCR (může obsahovat chyby):\n'+ctx.text.slice(0,24000)});
+  if(!content.length)throw new Error('Není co poslat');
+  content.push({type:'text',text:AI_PROMPT});
+  for(let attempt=0;attempt<4;attempt++){
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:S.model,max_tokens:8000,temperature:0,messages:[{role:'user',content}]})});
+    if(res.status===429||res.status>=500){await sleep(2000*2**attempt);continue}
+    if(!res.ok)throw new Error('AI '+res.status+': '+(await res.text()).slice(0,200));
+    const j=await res.json();const t=(j.content||[]).map(c=>c.text||'').join('');const m=t.match(/\{[\s\S]*\}/);if(!m)throw new Error('AI nevrátila JSON');
+    const r=JSON.parse(m[0]);r.vat=r.vat||[];r.items=r.items||[];r.fields=r.fields||{};return r}
+  throw new Error('AI je přetížená, zkuste později')}
+
+/* ---------- uložení dokladu ---------- */
+function storeDoc(fileId,r,folder,pageNo){
+  const cols=Object.keys(INV_COLS).filter(c=>!['reviewed','cost_category','note'].includes(c));
+  const vals=cols.map(c=>c==='folder'?folder:c==='page'?pageNo:(r[c]===undefined?null:r[c]));
+  run(`INSERT INTO invoices(file_id,project,${cols.join(',')}) VALUES(?,?,${cols.map(()=>'?').join(',')})`,[fileId,project,...vals]);
+  const id=lastId();
+  for(const v of r.vat||[])run('INSERT INTO invoice_vat VALUES(?,?,?,?)',[id,CORE.num(v.rate),CORE.num(v.base),CORE.num(v.vat)]);
+  for(const it of r.items||[])run('INSERT INTO invoice_items VALUES(?,?,?,?,?,?,?,?,?,?,?)',[id,it.line_no??null,it.code??null,it.description??null,CORE.num(it.qty),it.unit??null,CORE.num(it.unit_price),CORE.num(it.vat_rate),CORE.num(it.amount),CORE.num(it.vat),CORE.num(it.amount_incl)]);
+  for(const [k,v] of Object.entries(r.fields||{}))if(v!=null&&v!=='')run('INSERT INTO invoice_fields VALUES(?,?,?)',[id,k,typeof v==='object'?JSON.stringify(v):String(v)]);
+  return id}
+function deleteInvoices(where,params){const ids=`(SELECT id FROM invoices WHERE ${where})`;
+  for(const t of ['invoice_vat','invoice_items','invoice_fields','audit_flags'])run(`DELETE FROM ${t} WHERE invoice_id IN ${ids}`,params);run(`DELETE FROM invoices WHERE ${where}`,params)}
+function applyFx(r){if(r.currency&&r.currency!=='CZK'&&r.total_czk==null){const rate=r.fx_rate||P.fx[r.currency];if(rate&&r.total!=null){r.total_czk=CORE.r2(r.total*rate);if(!r.fx_rate)r.fx_rate=rate}}return r}
+
+/* sloučení zdrojů: text < AI < QR < strukturovaná data */
+function combine(textR,qrRs,aiR,structR){
+  let r=textR||{fields:{},vat:[],items:[]};const src=[];if(textR)src.push(textR.format==='text'?'text':textR.format);
+  if(aiR){r=CORE.mergeDoc(r,aiR);src.push('AI')}
+  for(const q of qrRs||[]){if(textR&&textR.total!=null&&q.total!=null&&Math.abs(textR.total-q.total)>1)r.fields['Kontrola: částka v textu']=String(textR.total);r=CORE.mergeDoc(r,q);src.push(q.format)}
+  if(structR){if(r.total!=null&&structR.total!=null&&Math.abs(r.total-structR.total)>1&&textR)r.fields['Kontrola: částka v textu']=String(r.total);r=CORE.mergeDoc(r,structR);src.push(structR.format)}
+  r=CORE.finalizeDoc(r);
+  r.confidence=structR?100:Math.max(CORE.confidence(r),qrRs&&qrRs.some(q=>q.format==='QR Faktura')?90:0);
+  r.sources=[...new Set(src)].join(' + ');r.format=structR?structR.format:(qrRs&&qrRs.length?qrRs[qrRs.length-1].format:(aiR?'AI':(textR?.format||'text')));
+  return applyFx(r)}
+
+/* ---------- zpracování souboru ---------- */
+async function processItem(item){
+  const t0=performance.now();const {file,path}=item;
+  const buf=await file.arrayBuffer();const h=await sha(buf);
+  const ex=q1('SELECT id,status FROM files WHERE project=? AND sha256=?',[project,h]);
+  fileMap.set(path,file);
+  if(ex&&(ex.status==='hotovo'||ex.status==='archiv')){run('INSERT OR IGNORE INTO file_paths VALUES(?,?)',[ex.id,path]);return {skip:true}}
+  if(ex){deleteInvoices('file_id=?',[ex.id]);run('DELETE FROM raw_text WHERE file_id=?',[ex.id]);run('DELETE FROM file_paths WHERE file_id=?',[ex.id]);run('DELETE FROM files WHERE id=?',[ex.id])}
+  run('INSERT INTO files(project,sha256,path,name,size,mime,status) VALUES(?,?,?,?,?,?,?)',[project,h,path,file.name,file.size,file.type,'zpracovává se']);
+  const fid=lastId();run('INSERT OR IGNORE INTO file_paths VALUES(?,?)',[fid,path]);
+  const folder=path.split('/').slice(0,-1).join('/')||null;
+  const e=ext(file.name);let units=[],structs=[],method=[],pages=0,rawAll='',qrAll=[];
+  try{
+    if(e==='zip'){const zip=await JSZip.loadAsync(buf);let n=0;
+      const ents=Object.values(zip.files).filter(z=>!z.dir&&ACCEPT.test(z.name)&&!/__MACOSX|\/\./.test(z.name));
+      if(ents.some(z=>/\.isdoc$/i.test(z.name))&&ents.length<=3&&/\.isdocx$/i.test(file.name)){/* nespadne sem */}
+      for(const z of ents){const blob=await z.async('blob');queue.unshift({file:new File([blob],z.name.split('/').pop()),path:path+'/'+z.name});n++}
+      run('UPDATE files SET status=?,method=?,docs=?,processed_at=? WHERE id=?',['archiv','ZIP',0,new Date().toISOString(),fid]);return {msg:`ZIP rozbalen, ${n} souborů přidáno do fronty`}}
+    if(e==='isdocx'){const zip=await JSZip.loadAsync(buf);const z=Object.values(zip.files).find(z=>/\.isdoc$/i.test(z.name));if(!z)throw new Error('V ISDOCX chybí soubor .isdoc');
+      structs=CORE.parseXmlDocs(CORE.decodeXml(await z.async('uint8array')));method.push('ISDOCX')}
+    else if(e==='xml'||e==='isdoc'){structs=CORE.parseXmlDocs(CORE.decodeXml(buf));method.push(structs[0]?.format||'XML');
+      if(/^XML \(/.test(structs[0]?.format||'')){units=[{text:'',qrs:[],textR:structs[0]}];structs=[]}}
+    else if(e==='txt'){const t=new TextDecoder().decode(buf);units=[{text:t,qrs:[]}];method.push('TXT')}
+    else if(e==='pdf'){
+      const pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0)),isEvalSupported:false,useSystemFonts:true}).promise;pages=pdf.numPages;
+      try{const att=await pdf.getAttachments();if(att)for(const a of Object.values(att)){if(!/\.(isdoc|xml)$/i.test(a.filename||''))continue;
+        try{const d=CORE.parseXmlDocs(CORE.decodeXml(a.content));if(d.length&&!/^XML \(/.test(d[0].format)){structs=d;method.push('PDF příloha '+d[0].format);break}}catch(err){}}}catch(err){}
+      const maxP=S.split?Math.min(pages,60):Math.min(pages,Math.max(+S.pages,structs.length?1:+S.pages));
+      const pTexts=[];for(let p=1;p<=pages;p++){const pg=await pdf.getPage(p);const tc=await pg.getTextContent();pTexts.push(pdfLayoutText(tc.items));pg.cleanup()}
+      const joined=pTexts.join('\n'),q=textQuality(joined);
+      const canvases=[];
+      if(q>0.8&&!S.ocrText){method.push('PDF text');
+        if(S.qr&&!structs.length){for(let p=1;p<=(S.split?maxP:Math.min(pages,2));p++){const cv=await renderPage(pdf,p,1800);const qs=scanQR(cv);canvases[p-1]=cv;
+          if(S.split)units.push({text:pTexts[p-1],qrs:qs,page:p});else qrAll.push(...qs)}}
+        if(!units.length)units=S.split?pTexts.slice(0,maxP).map((t,i)=>({text:t,qrs:[],page:i+1})):[{text:joined,qrs:qrAll}]}
+      else if(structs.length){units=[{text:joined,qrs:[]}];method.push('bez OCR')}
+      else{method.push('OCR');let confs=[];
+        for(let p=1;p<=maxP;p++){$('#curFile').textContent=`${path} · OCR strana ${p}/${maxP}`;const cv=await renderPage(pdf,p,+S.scale||2400);canvases.push(cv);
+          const qs=S.qr?scanQR(cv):[];const o=await ocrCanvas(cv);confs.push(o.conf);
+          if(S.split)units.push({text:o.text,qrs:qs,page:p,canvases:[cv]});else{rawAll+=(rawAll?'\n\f\n':'')+o.text;qrAll.push(...qs)}}
+        if(!S.split)units=[{text:rawAll,qrs:qrAll,canvases}];method.push('OCR '+Math.round(confs.reduce((a,b)=>a+b,0)/Math.max(1,confs.length))+' %')}
+      for(const u of units){u.pdfBuf=S.split?null:buf;if(!u.canvases)u.canvases=canvases.filter(Boolean)}
+      try{await pdf.destroy()}catch(err){}}
+    else{
+      const cvs=await imageCanvases(file,buf,S.split?60:+S.pages);pages=cvs.length;method.push('OCR');let txt='',qs=[],confs=[];
+      for(let i=0;i<cvs.length;i++){$('#curFile').textContent=`${path} · OCR ${i+1}/${cvs.length}`;const q=S.qr?scanQR(cvs[i]):[];const o=await ocrCanvas(cvs[i]);confs.push(o.conf);
+        if(S.split)units.push({text:o.text,qrs:q,page:i+1,canvases:[cvs[i]]});else{txt+=(txt?'\n\f\n':'')+o.text;qs.push(...q)}}
+      if(!S.split)units=[{text:txt,qrs:qs,canvases:cvs}];method.push(Math.round(confs.reduce((a,b)=>a+b,0)/Math.max(1,confs.length))+' %')}
+
+    // vytěžení
+    const out=[];const opts={ownIcos:P.ownIcos,customLabels:P.labels};
+    if(structs.length){const tr=units[0]?.text?CORE.parseText(units[0].text,opts):null;
+      structs.forEach((s,i)=>out.push({r:combine(tr&&structs.length===1?tr:null,[],null,s),page:structs.length>1?i+1:null}))}
+    else for(const u of units){
+      const tr=u.textR||CORE.parseText(u.text,opts);const qrs=(u.qrs||[]).map(CORE.parseQR).filter(Boolean);
+      let ai=null;const pre=combine(tr,qrs,null,null);
+      if(S.key&&(S.aiAll||pre.confidence<+S.thr)){try{$('#curFile').textContent=path+' · AI';ai=await aiExtract({text:u.text,pdfBuf:u.pdfBuf,canvases:u.canvases});method.push('AI')}catch(err){log('  AI: '+err.message)}}
+      out.push({r:ai?combine(tr,qrs,ai,null):pre,page:u.page??null})}
+    rawAll=units.map(u=>u.text).filter(Boolean).join('\n\f\n');qrAll=units.flatMap(u=>u.qrs||[]);
+    for(const o of out)storeDoc(fid,o.r,folder,o.page);
+    if(rawAll||qrAll.length)run('INSERT OR REPLACE INTO raw_text VALUES(?,?,?)',[fid,rawAll,qrAll.join('\n')]);
+    const conf=out.length?Math.min(...out.map(o=>o.r.confidence)):0;
+    run('UPDATE files SET status=?,method=?,pages=?,docs=?,confidence=?,processed_at=?,ms=?,error=NULL WHERE id=?',[out.length?'hotovo':'prázdné',[...new Set(method)].join(' · '),pages,out.length,conf,new Date().toISOString(),Math.round(performance.now()-t0),fid]);
+    const r0=out[0]?.r;return {msg:out.length?`${[...new Set(method)].join(' · ')} · ${conf} % · ${r0.invoice_no||'bez čísla'} · ${fmt(r0.total)} ${r0.currency||''}${out.length>1?' · '+out.length+' dokladů':''}`:'nenalezen žádný doklad'}
+  }catch(err){run('UPDATE files SET status=?,error=?,method=?,ms=? WHERE id=?',['chyba',String(err.message||err).slice(0,500),method.join(' · '),Math.round(performance.now()-t0),fid]);throw err}}
+
+async function runQueue(){
+  if(!project){toast('Nejdřív založte projekt vpravo nahoře.');return}
+  running=true;stopFlag=false;$('#startBtn').disabled=true;$('#stopBtn').disabled=false;$('#retryBtn').hidden=true;
+  let done=0,err=0,skip=0;const t0=Date.now();failed.length=0;
+  log(`Start: ${queue.length} souborů, projekt „${project}“.`);
+  const lanes=Math.max(1,+S.workers);
+  const upd=()=>{const tot=done+queue.length+inflight;$('#prog').style.width=(100*done/Math.max(1,tot))+'%';
+    const per=(Date.now()-t0)/Math.max(1,done-skip);const eta=per*(queue.length+inflight)/lanes/1000;
+    $('#progTxt').textContent=`${fmtI(done)} / ${fmtI(tot)} · přeskočeno ${fmtI(skip)} · chyb ${err} · ${done>skip?(per/1000).toFixed(1)+' s/soubor · ':''}zbývá cca ${eta>5400?Math.round(eta/3600)+' h':Math.round(eta/60)+' min'}`};
+  async function lane(){while(queue.length&&!stopFlag){const it=queue.shift();inflight++;$('#curFile').textContent=it.path;
+    try{const r=await processItem(it);if(r.skip)skip++;else log(it.path+' → '+r.msg)}catch(e){err++;failed.push(it);log('CHYBA '+it.path+': '+(e.message||e))}
+    inflight--;done++;upd();
+    if(Date.now()-lastSave>45000){await persist();renderStats()}}}
+  await Promise.all(Array.from({length:lanes},lane));
+  $('#curFile').textContent='';runChecks(true);await persist();renderStats();refreshFilters();
+  log(stopFlag?`Zastaveno. Ve frontě zbývá ${queue.length} souborů.`:`Hotovo za ${Math.round((Date.now()-t0)/60000)} min. Nově zpracováno ${done-skip-err}, přeskočeno ${skip}, chyb ${err}.`);
+  running=false;$('#stopBtn').disabled=true;$('#startBtn').disabled=!queue.length;$('#queueInfo').textContent=queue.length?fmtI(queue.length)+' ve frontě':'';$('#retryBtn').hidden=!failed.length}
+
+/* ---------- auditní kontroly ---------- */
+const CHECKS={NO_NUMBER:'Chybí číslo dokladu',NO_TOTAL:'Chybí částka',NO_ICO:'Chybí IČO dodavatele',BAD_ICO:'Neplatné IČO',SUM_MISMATCH:'Součet nesedí',VAT_CALC:'DPH nesedí na sazbu',
+  VAT_RATE:'Neobvyklá sazba DPH',NO_DIC:'DPH bez DIČ dodavatele',DUE_BEFORE:'Splatnost před vystavením',LATE_ISSUE:'Pozdní vystavení',NO_DUZP:'Chybí DUZP',FUTURE:'Datum v budoucnosti',
+  OUT_OF_PERIOD:'Mimo období projektu',WEEKEND:'Vystaveno o víkendu',ROUND:'Kulatá částka',DUPLICATE:'Duplicitní doklad',SAME_AMOUNT:'Stejná částka u dodavatele',DUP_FILE:'Soubor vícekrát',
+  CUSTOMER:'Jiný odběratel',BANK_CHANGE:'Více účtů dodavatele',BAD_ACCOUNT:'Neplatný účet',SRC_MISMATCH:'Zdroje dat nesouhlasí',FX_MISSING:'Chybí kurz',LONG_DUE:'Dlouhá splatnost',
+  LOW_CONF:'Nízká jistota',ARES_ENDED:'Subjekt zaniklý',ARES_NOTFOUND:'Nenalezen v ARES',ARES_DIC:'DIČ nesedí s ARES',FILE_ERROR:'Nezpracovaný soubor',NOT_INVOICE:'Není faktura',SELF:'Dodavatel = odběratel'};
+function runChecks(quiet){if(!project)return;
+  run('DELETE FROM audit_flags WHERE invoice_id IN (SELECT id FROM invoices WHERE project=?)',[project]);
+  const add=(id,c,s,m)=>run('INSERT INTO audit_flags VALUES(?,?,?,?)',[id,c,s,m]);
+  const rows=qa('SELECT i.*,f.confidence fconf FROM invoices i JOIN files f ON f.id=i.file_id WHERE i.project=?',[project]);
+  const vat=new Map();for(const v of qa('SELECT v.* FROM invoice_vat v JOIN invoices i ON i.id=v.invoice_id WHERE i.project=?',[project]))(vat.get(v.invoice_id)||vat.set(v.invoice_id,[]).get(v.invoice_id)).push(v);
+  const fld=new Map();for(const f of qa("SELECT f.* FROM invoice_fields f JOIN invoices i ON i.id=f.invoice_id WHERE i.project=? AND f.key LIKE 'Kontrola:%'",[project]))(fld.get(f.invoice_id)||fld.set(f.invoice_id,{}).get(f.invoice_id))[f.key]=f.value;
+  const aresM=new Map(qa('SELECT * FROM ares').map(a=>[a.ico,a]));
+  const today=new Date().toISOString().slice(0,10);const own=new Set(P.ownIcos);
+  const seen=new Map(),amounts=new Map(),accounts=new Map();
+  for(const r of rows){
+    const fin=!['Dodací list','Objednávka'].includes(r.doc_type);
+    if(!fin)add(r.id,'NOT_INVOICE','nízká',`Doklad typu „${r.doc_type}“ není účetní doklad k úhradě`);
+    if(!r.invoice_no)add(r.id,'NO_NUMBER','vysoká','Chybí číslo dokladu');
+    if(r.total==null&&fin)add(r.id,'NO_TOTAL','vysoká','Chybí celková částka');
+    if(!r.supplier_ico&&!r.supplier_dic)add(r.id,'NO_ICO','střední','Chybí IČO i DIČ dodavatele');
+    else if(r.supplier_ico&&!CORE.icoOk(r.supplier_ico)&&!/^[A-Z]/.test(r.supplier_dic||'CZ').valueOf())add(r.id,'BAD_ICO','vysoká','IČO dodavatele neprošlo kontrolním součtem: '+r.supplier_ico);
+    else if(r.supplier_ico&&!CORE.icoOk(r.supplier_ico)&&(r.supplier_dic||'').startsWith('CZ'))add(r.id,'BAD_ICO','vysoká','IČO dodavatele neprošlo kontrolním součtem: '+r.supplier_ico);
+    if(r.supplier_ico&&r.customer_ico&&r.supplier_ico===r.customer_ico)add(r.id,'SELF','vysoká','Dodavatel a odběratel mají stejné IČO');
+    if(own.size&&r.customer_ico&&!own.has(r.customer_ico))add(r.id,'CUSTOMER','vysoká',`Doklad je vystaven na jiné IČO odběratele (${r.customer_ico} ${r.customer_name||''})`);
+    if(own.size&&r.supplier_ico&&own.has(r.supplier_ico))add(r.id,'CUSTOMER','střední','Dodavatelem je vlastní firma, jde o vydanou fakturu?');
+    if(r.total_base!=null&&r.total_vat!=null&&r.total!=null){const diff=CORE.r2(r.total_base+r.total_vat-(r.advance_paid||0)+(r.rounding||0)-r.total);
+      if(Math.abs(diff)>1)add(r.id,'SUM_MISMATCH','vysoká',`Základ ${fmt(r.total_base)} + DPH ${fmt(r.total_vat)}${r.advance_paid?' − zálohy '+fmt(r.advance_paid):''} ≠ k úhradě ${fmt(r.total)} (rozdíl ${fmt(diff)})`)}
+    const vs=vat.get(r.id)||[];
+    for(const v of vs){if(v.base!=null&&v.vat!=null&&Math.abs(v.base*v.rate/100-v.vat)>Math.max(1,Math.abs(v.base)*0.002))add(r.id,'VAT_CALC','střední',`DPH ${v.rate} % z ${fmt(v.base)} má být ${fmt(v.base*v.rate/100)}, na dokladu ${fmt(v.vat)}`);
+      if(r.currency==='CZK'&&![0,10,12,15,21].includes(v.rate))add(r.id,'VAT_RATE','střední',`Sazba ${v.rate} % není česká sazba DPH`);
+      if(r.currency==='CZK'&&v.rate===15&&(r.duzp||r.issue_date||'')>='2024-01-01')add(r.id,'VAT_RATE','střední','Sazba 15 % po 1. 1. 2024 neplatí')}
+    if(vs.length&&r.total_base!=null&&Math.abs(vs.reduce((a,v)=>a+(v.base||0),0)-r.total_base)>1&&!r.advance_paid)add(r.id,'SUM_MISMATCH','střední','Součet základů v rekapitulaci DPH nesedí na základ celkem');
+    if((r.total_vat||0)>0&&!r.supplier_dic)add(r.id,'NO_DIC','střední','Doklad obsahuje DPH, ale chybí DIČ dodavatele');
+    if((r.total_vat||0)>0&&!r.duzp&&!['Zálohová faktura'].includes(r.doc_type))add(r.id,'NO_DUZP','střední','Daňový doklad bez data zdanitelného plnění');
+    if(r.issue_date&&r.due_date&&r.due_date<r.issue_date)add(r.id,'DUE_BEFORE','střední','Splatnost je před datem vystavení');
+    if(r.issue_date&&r.due_date&&(new Date(r.due_date)-new Date(r.issue_date))/864e5>90)add(r.id,'LONG_DUE','nízká','Splatnost delší než 90 dní');
+    if(r.duzp&&r.issue_date&&(new Date(r.issue_date)-new Date(r.duzp))/864e5>15)add(r.id,'LATE_ISSUE','nízká',`Vystaveno ${Math.round((new Date(r.issue_date)-new Date(r.duzp))/864e5)} dní po DUZP (zákonná lhůta 15 dní)`);
+    for(const [k,lab] of [['issue_date','vystavení'],['duzp','DUZP']])if(r[k]&&r[k]>today)add(r.id,'FUTURE','střední',`Datum ${lab} ${r[k]} je v budoucnosti`);
+    const d=r.duzp||r.issue_date;if(d&&P.from&&d<P.from||d&&P.to&&d>P.to)add(r.id,'OUT_OF_PERIOD','střední',`Plnění ${d} je mimo období projektu`);
+    if(r.issue_date){const wd=new Date(r.issue_date+'T12:00:00').getDay();if(wd===0||wd===6)add(r.id,'WEEKEND','nízká','Vystaveno o víkendu')}
+    if(r.total!=null&&Math.abs(r.total)>=50000&&Math.abs(r.total)%1000===0)add(r.id,'ROUND','nízká','Kulatá vysoká částka '+fmt(r.total));
+    if(r.currency&&r.currency!=='CZK'&&r.total_czk==null)add(r.id,'FX_MISSING','střední',`Doklad v ${r.currency} bez kurzu, doplňte kurz v nastavení projektu`);
+    if(r.bank_account&&/^\d/.test(r.bank_account)&&!CORE.czAccOk(r.bank_account))add(r.id,'BAD_ACCOUNT','střední','Číslo účtu '+r.bank_account+' neprošlo kontrolou modulo 11');
+    const fx=fld.get(r.id);if(fx&&fx['Kontrola: částka v textu'])add(r.id,'SRC_MISMATCH','vysoká',`Částka ze strukturovaných dat ${fmt(r.total)} se liší od částky v textu ${fmt(fx['Kontrola: částka v textu'])}`);
+    if(r.fconf!=null&&r.fconf<+S.thr&&!r.reviewed)add(r.id,'LOW_CONF','nízká',`Jistota vytěžení ${Math.round(r.fconf)} %, ověřte ručně`);
+    const supK=r.supplier_ico||r.supplier_dic||(r.supplier_name||'').toLowerCase();
+    if(r.invoice_no&&supK){const k=supK+'|'+String(r.invoice_no).replace(/\W/g,'').toUpperCase();if(seen.has(k)){add(r.id,'DUPLICATE','vysoká',`Stejné číslo dokladu u dodavatele jako #${seen.get(k)}`);add(seen.get(k),'DUPLICATE','vysoká','Stejné číslo dokladu u dodavatele jako #'+r.id)}else seen.set(k,r.id)}
+    if(supK&&r.total){const k=supK+'|'+r.total;const prev=(amounts.get(k)||[]);for(const p of prev){const dd=Math.abs(new Date(p.d||0)-new Date(r.issue_date||0))/864e5;if(dd<=31&&p.no!==r.invoice_no)add(r.id,'SAME_AMOUNT','střední',`Stejná částka ${fmt(r.total)} u dodavatele do 31 dní (#${p.id})`)}prev.push({id:r.id,d:r.issue_date,no:r.invoice_no});amounts.set(k,prev)}
+    if(supK&&(r.bank_account||r.iban)){const acc=r.iban||CORE.ibanToCz(r.iban)||r.bank_account;const a=accounts.get(supK)||new Map();a.set(r.bank_account||r.iban,(a.get(r.bank_account||r.iban)||[]).concat(r.id));accounts.set(supK,a)}
+    const ar=r.supplier_ico&&aresM.get(r.supplier_ico);
+    if(ar){if(ar.error==='nenalezen')add(r.id,'ARES_NOTFOUND','vysoká','IČO '+r.supplier_ico+' není v registru ARES');
+      if(ar.ended&&(r.issue_date||today)>ar.ended)add(r.id,'ARES_ENDED','vysoká',`Dodavatel zanikl ${ar.ended}, doklad vystaven ${r.issue_date||'?'}`);
+      if(ar.dic&&r.supplier_dic&&ar.dic!==r.supplier_dic)add(r.id,'ARES_DIC','střední',`DIČ na dokladu ${r.supplier_dic}, v ARES ${ar.dic}`)}
+  }
+  for(const [k,a] of accounts)if(a.size>1){const all=[...a.keys()].join(', ');for(const ids of a.values())for(const id of ids)add(id,'BANK_CHANGE','střední','Dodavatel používá více bankovních účtů: '+all)}
+  for(const f of qa('SELECT fp.file_id, GROUP_CONCAT(fp.path, " | ") paths, COUNT(*) n FROM file_paths fp JOIN files f ON f.id=fp.file_id WHERE f.project=? GROUP BY fp.file_id HAVING n>1',[project]))
+    for(const i of qa('SELECT id FROM invoices WHERE file_id=?',[f.file_id]))add(i.id,'DUP_FILE','vysoká',`Stejný soubor je ve složce ${f.n}×: ${f.paths}`);
+  saveSoon();renderChecks();renderBadge();if(!quiet)toast('Kontroly přepočítány')}
+
+/* ---------- ARES ---------- */
+async function aresLookup(ico){const c=q1('SELECT * FROM ares WHERE ico=?',[ico]);if(c&&!c.error?.startsWith('síť'))return c;
+  try{const res=await fetch('https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/'+ico,{headers:{accept:'application/json'}});
+    if(res.status===404){run('INSERT OR REPLACE INTO ares(ico,fetched,error) VALUES(?,?,?)',[ico,new Date().toISOString(),'nenalezen']);return q1('SELECT * FROM ares WHERE ico=?',[ico])}
+    if(!res.ok)throw new Error('HTTP '+res.status);const j=await res.json();
+    run('INSERT OR REPLACE INTO ares VALUES(?,?,?,?,?,?,?,?)',[ico,j.obchodniJmeno||null,j.sidlo?.textovaAdresa||null,j.dic||null,j.datumZaniku||null,j.pravniForma||null,new Date().toISOString(),null]);
+    return q1('SELECT * FROM ares WHERE ico=?',[ico])}
+  catch(e){run('INSERT OR REPLACE INTO ares(ico,fetched,error) VALUES(?,?,?)',[ico,new Date().toISOString(),'síť: '+e.message]);throw e}}
+async function aresAll(){const icos=qa('SELECT DISTINCT supplier_ico ico FROM invoices WHERE project=? AND supplier_ico IS NOT NULL AND supplier_ico NOT IN (SELECT ico FROM ares WHERE error IS NULL OR error=\'nenalezen\')',[project]).map(r=>r.ico).filter(CORE.icoOk);
+  if(!icos.length){toast('Všichni dodavatelé jsou už ověřeni');runChecks();return}
+  $('#aresBtn').disabled=true;let ok=0,fail=0;
+  for(const ico of icos){try{await aresLookup(ico);ok++}catch(e){fail++;if(fail===3&&!ok){log('ARES nedostupný: '+e.message+'. Prohlížeč může blokovat přístup ze souboru, zkuste aplikaci spustit z webu (např. yey.cz).');break}}
+    $('#chkInfo').textContent=`ARES ${ok+fail}/${icos.length}`;await sleep(220)}
+  if(S.ares)run(`UPDATE invoices SET supplier_name=(SELECT name FROM ares a WHERE a.ico=invoices.supplier_ico) WHERE project=? AND reviewed=0 AND (supplier_name IS NULL OR supplier_name='') AND supplier_ico IN (SELECT ico FROM ares WHERE name IS NOT NULL)`,[project]);
+  $('#aresBtn').disabled=false;log(`ARES: ověřeno ${ok}, nedostupné ${fail}.`);runChecks()}
+
+/* ---------- kategorie a znovuvytěžení ---------- */
+function applyRules(){if(!P.rules.length){toast('Nejsou zadána žádná pravidla');return}let n=0;
+  const extra=new Map();for(const f of qa('SELECT f.invoice_id,group_concat(f.value,\' \') t FROM invoice_fields f JOIN invoices i ON i.id=f.invoice_id WHERE i.project=? GROUP BY f.invoice_id',[project]))extra.set(f.invoice_id,f.t);
+  const items=new Map();for(const f of qa('SELECT t.invoice_id,group_concat(t.description,\' \') t FROM invoice_items t JOIN invoices i ON i.id=t.invoice_id WHERE i.project=? GROUP BY t.invoice_id',[project]))items.set(f.invoice_id,f.t);
+  for(const r of qa('SELECT i.id,i.supplier_name,i.supplier_ico,i.folder,i.note,f.path FROM invoices i JOIN files f ON f.id=i.file_id WHERE i.project=? AND i.reviewed=0',[project])){
+    const hay=[r.supplier_name,r.supplier_ico,r.folder,r.path,r.note,extra.get(r.id),items.get(r.id)].join(' ').toLowerCase();
+    const rule=P.rules.find(x=>hay.includes(x.p));if(rule){run('UPDATE invoices SET cost_category=? WHERE id=?',[rule.c,r.id]);n++}}
+  saveSoon();toast(`Kategorie přiřazena ${n} dokladům`)}
+function reparse(){let n=0;const opts={ownIcos:P.ownIcos,customLabels:P.labels};
+  for(const f of qa("SELECT f.id,f.path,t.text,t.qr FROM files f JOIN raw_text t ON t.file_id=f.id WHERE f.project=? AND f.status='hotovo' AND f.method NOT LIKE '%ISDOC%' AND f.method NOT LIKE '%UBL%' AND f.method NOT LIKE '%Pohoda%' AND f.method NOT LIKE '%Factur%'",[project])){
+    const inv=qa('SELECT id,reviewed,page FROM invoices WHERE file_id=?',[f.id]);if(inv.some(i=>i.reviewed))continue;
+    const pagesT=S.split&&inv.length>1?f.text.split('\n\f\n'):[f.text];
+    deleteInvoices('file_id=? AND reviewed=0',[f.id]);
+    pagesT.forEach((t,i)=>{const r=combine(CORE.parseText(t,opts),(f.qr||'').split('\n').filter(Boolean).map(CORE.parseQR).filter(Boolean),null,null);storeDoc(f.id,r,f.path.split('/').slice(0,-1).join('/')||null,pagesT.length>1?i+1:null);n++});
+    run('UPDATE files SET confidence=(SELECT MIN(confidence) FROM invoices WHERE file_id=?) WHERE id=?',[f.id,f.id])}
+  runChecks(true);renderStats();toast(`Znovu vytěženo ${n} dokladů (ověřené zůstaly beze změny)`)}
+
+/* ---------- vykreslení ---------- */
+function renderProjects(){const ps=qa('SELECT name FROM projects ORDER BY created');
+  $('#projSel').innerHTML=ps.map(p=>`<option ${p.name===project?'selected':''}>${esc(p.name)}</option>`).join('')||'<option value="">založte projekt</option>'}
+function renderStats(){if(!project){$('#stats').innerHTML='<div class="muted">Začněte založením projektu vpravo nahoře, např. „Film 2026“.</div>';return}
+  const s=q1(`SELECT COUNT(*) n, SUM(total_czk) t, SUM(CASE WHEN currency='CZK' THEN total_vat END) v, COUNT(DISTINCT COALESCE(supplier_ico,supplier_name)) sup, SUM(reviewed) rev FROM invoices WHERE project=?`,[project]);
+  const fl=q1(`SELECT COUNT(DISTINCT invoice_id) n FROM audit_flags a JOIN invoices i ON i.id=a.invoice_id WHERE i.project=? AND severity='vysoká'`,[project]);
+  const f=q1(`SELECT COUNT(*) n, SUM(status='chyba') e FROM files WHERE project=?`,[project]);
+  const bud=CORE.num(P.budget);
+  const st=[['Souborů',fmtI(f.n)],['Dokladů',fmtI(s.n)],['Celkem v CZK',fmt(s.t)],...(bud?[['Čerpání rozpočtu',((s.t||0)/bud*100).toFixed(1)+' %']]:[]),['DPH (CZK)',fmt(s.v)],['Dodavatelů',fmtI(s.sup)],['Ověřeno',fmtI(s.rev||0)],['Vážné nálezy',fmtI(fl.n),fl.n>0],['Chybné soubory',fmtI(f.e||0),f.e>0]];
+  $('#stats').innerHTML=st.map(([l,v,b])=>`<div class="stat${b?' bad':''}"><b>${v??0}</b><span>${l}</span></div>`).join('')}
+function renderBadge(){const n=project?q1(`SELECT COUNT(DISTINCT invoice_id) n FROM audit_flags a JOIN invoices i ON i.id=a.invoice_id WHERE i.project=? AND severity='vysoká'`,[project]).n:0;$('#badge').hidden=!n;$('#badge').textContent=n}
+function refreshFilters(){if(!project)return;
+  const fill=(sel,lab,vals)=>{const cur=sel.value;sel.innerHTML=`<option value="">${lab}</option>`+vals.map(v=>`<option ${v===cur?'selected':''}>${esc(v)}</option>`).join('')};
+  fill($('#fType'),'Všechny typy',qa('SELECT DISTINCT doc_type v FROM invoices WHERE project=? AND doc_type IS NOT NULL',[project]).map(r=>r.v));
+  fill($('#fCur'),'Všechny měny',qa('SELECT DISTINCT currency v FROM invoices WHERE project=? AND currency IS NOT NULL',[project]).map(r=>r.v));
+  fill($('#fCode'),'Všechny kontroly',qa('SELECT DISTINCT code v FROM audit_flags a JOIN invoices i ON i.id=a.invoice_id WHERE i.project=?',[project]).map(r=>r.v))}
+function listWhere(){const q=$('#q').value.trim(),f=$('#fStat').value;let w='i.project=?',p=[project];
+  if(q){w+=" AND (i.supplier_name LIKE ? OR i.invoice_no LIKE ? OR i.supplier_ico LIKE ? OR i.vs LIKE ? OR f.path LIKE ? OR i.cost_category LIKE ? OR CAST(i.total AS TEXT) LIKE ?)";p.push(...Array(7).fill('%'+q+'%'))}
+  if(f==='flag')w+=" AND EXISTS(SELECT 1 FROM audit_flags a WHERE a.invoice_id=i.id AND a.severity='vysoká')";
+  if(f==='anyflag')w+=' AND EXISTS(SELECT 1 FROM audit_flags a WHERE a.invoice_id=i.id)';
+  if(f==='low')w+=' AND i.confidence<'+(+S.thr);if(f==='rev')w+=' AND i.reviewed=0';if(f==='ok')w+=' AND i.reviewed=1';
+  if($('#fType').value){w+=' AND i.doc_type=?';p.push($('#fType').value)}if($('#fCur').value){w+=' AND i.currency=?';p.push($('#fCur').value)}
+  return [w,p]}
+const LCOLS=[['id','#'],['st','Stav'],['doc_type','Typ'],['invoice_no','Číslo'],['supplier_name','Dodavatel'],['supplier_ico','IČO'],['issue_date','Vystaveno'],['duzp','DUZP'],['due_date','Splatnost'],['total_base','Základ',1],['total_vat','DPH',1],['total','K úhradě',1],['currency','Měna'],['total_czk','CZK',1],['cost_category','Kategorie'],['sources','Zdroj'],['confidence','Jistota',1],['folder','Složka']];
+function listIds(){const [w,p]=listWhere();return qa(`SELECT i.id FROM invoices i JOIN files f ON f.id=i.file_id WHERE ${w} ORDER BY ${sortSql()}`,p).map(r=>r.id)}
+const sortSql=()=>(sort.k==='st'?'(SELECT COUNT(*) FROM audit_flags a WHERE a.invoice_id=i.id)':'i.'+sort.k)+(sort.d>0?' ASC':' DESC')+', i.id DESC';
+function renderList(){if(!project){$('#tbl').innerHTML='';return}const [w,p]=listWhere();const n=q1(`SELECT COUNT(*) n FROM invoices i JOIN files f ON f.id=i.file_id WHERE ${w}`,p).n;
+  if(page*PG>=n&&page>0)page=Math.max(0,Math.ceil(n/PG)-1);
+  const rows=qa(`SELECT i.*,f.path,(SELECT COUNT(*) FROM audit_flags a WHERE a.invoice_id=i.id AND a.severity='vysoká') fh,(SELECT COUNT(*) FROM audit_flags a WHERE a.invoice_id=i.id) fl FROM invoices i JOIN files f ON f.id=i.file_id WHERE ${w} ORDER BY ${sortSql()} LIMIT ${PG} OFFSET ${page*PG}`,p);
+  $('#listInfo').textContent=fmtI(n)+' dokladů';$('#pg').textContent=`${page+1} / ${Math.max(1,Math.ceil(n/PG))}`;
+  const st=r=>r.reviewed?'<span class="pill p-ok">ověřeno</span>':r.fh?`<span class="pill p-bad">${r.fh} vážné</span>`:r.fl?`<span class="pill p-warn">${r.fl} nález</span>`:r.confidence<+S.thr?'<span class="pill p-warn">nejisté</span>':'<span class="pill p-info">k ověření</span>';
+  $('#tbl').innerHTML='<tr>'+LCOLS.map(([k,l])=>`<th data-s="${k}">${l}${sort.k===k?(sort.d>0?' ↑':' ↓'):''}</th>`).join('')+'</tr>'+
+   (rows.length?rows.map(r=>`<tr class="click" data-id="${r.id}">`+LCOLS.map(([k,,isN])=>k==='st'?`<td>${st(r)}</td>`:isN?`<td class="n">${k==='confidence'?Math.round(r[k]||0)+' %':fmt(r[k])}</td>`:k==='supplier_name'?`<td title="${esc(r[k])}">${esc((r[k]||'').slice(0,42))}</td>`:`<td${k==='invoice_no'||k==='supplier_ico'?' class="mono"':''}>${esc(r[k])}</td>`).join('')+'</tr>').join(''):`<tr><td colspan="${LCOLS.length}" class="muted">Zatím žádné doklady. Načtěte je na kartě Import.</td></tr>`)}
+const SEVC={'vysoká':'p-bad','střední':'p-warn','nízká':'p-info'};
+function renderChecks(){if(!project)return;let w='i.project=?',p=[project];
+  if($('#fSev').value){w+=' AND a.severity=?';p.push($('#fSev').value)}if($('#fCode').value){w+=' AND a.code=?';p.push($('#fCode').value)}
+  const rows=qa(`SELECT a.*,i.invoice_no,i.supplier_name,i.total,i.currency,i.reviewed FROM audit_flags a JOIN invoices i ON i.id=a.invoice_id WHERE ${w} ORDER BY CASE severity WHEN 'vysoká' THEN 0 WHEN 'střední' THEN 1 ELSE 2 END, a.code, a.invoice_id LIMIT 3000`,p);
+  $('#chkInfo').textContent=fmtI(rows.length)+' nálezů'+(rows.length>=3000?' (zobrazeno 3000, všechny jsou v exportu)':'');
+  $('#chkTbl').innerHTML='<tr><th>Závažnost</th><th>Kontrola</th><th>Nález</th><th>Doklad</th><th>Dodavatel</th><th>K úhradě</th></tr>'+rows.map(r=>`<tr class="click" data-id="${r.invoice_id}"><td><span class="pill ${SEVC[r.severity]}">${r.severity}</span></td><td>${esc(CHECKS[r.code]||r.code)}</td><td class="wrap">${esc(r.message)}</td><td class="mono">${esc(r.invoice_no)} <span class="muted">#${r.invoice_id}</span>${r.reviewed?' <span class="pill p-ok">ověřeno</span>':''}</td><td>${esc((r.supplier_name||'').slice(0,40))}</td><td class="n">${fmt(r.total)} ${esc(r.currency)}</td></tr>`).join('');
+  const sum=qa(`SELECT a.code,a.severity,COUNT(*) n,COUNT(DISTINCT a.invoice_id) d FROM audit_flags a JOIN invoices i ON i.id=a.invoice_id WHERE i.project=? GROUP BY a.code,a.severity ORDER BY CASE severity WHEN 'vysoká' THEN 0 WHEN 'střední' THEN 1 ELSE 2 END, n DESC`,[project]);
+  $('#chkSum').innerHTML='<tr><th>Kontrola</th><th>Závažnost</th><th>Dokladů</th></tr>'+(sum.map(s=>`<tr class="click" data-code="${s.code}"><td>${esc(CHECKS[s.code]||s.code)}</td><td><span class="pill ${SEVC[s.severity]}">${s.severity}</span></td><td class="n">${fmtI(s.d)}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">Bez nálezů</td></tr>');
+  renderBenford()}
+function renderBenford(){const vals=qa('SELECT ABS(COALESCE(total_czk,total)) v FROM invoices WHERE project=? AND ABS(COALESCE(total_czk,total))>=10',[project]).map(r=>String(r.v).replace(/^[0.]+/,'')[0]).filter(Boolean);
+  if(vals.length<50){$('#benford').innerHTML=`<p class="muted small">Analýza potřebuje alespoň 50 dokladů (nyní ${vals.length}).</p>`;return}
+  const cnt=Array(10).fill(0);for(const d of vals)cnt[+d]++;let mad=0;let html='<div class="benf"><b></b><span class="small muted">podíl</span><span class="small muted">skutečnost</span><span class="small muted">očekávání</span>';
+  for(let d=1;d<=9;d++){const obs=cnt[d]/vals.length,exp=Math.log10(1+1/d);mad+=Math.abs(obs-exp);
+    html+=`<b>${d}</b><div class="b"><i style="width:${Math.min(100,obs/0.35*100)}%"></i><u style="left:${exp/0.35*100}%"></u></div><span>${(obs*100).toFixed(1)} %</span><span class="muted">${(exp*100).toFixed(1)} %</span>`}
+  mad/=9;const v=mad<0.006?['blízká shoda','p-ok']:mad<0.012?['přijatelná shoda','p-ok']:mad<0.015?['hraniční shoda','p-warn']:['neshoda, prověřit','p-bad'];
+  $('#benford').innerHTML=html+`</div><p class="small" style="margin-top:10px">MAD ${mad.toFixed(4)} · <span class="pill ${v[1]}">${v[0]}</span> · ${fmtI(vals.length)} dokladů</p>`}
+function tableHtml(rows,numCols=[]){if(!rows.length)return '<tr><td class="muted">Žádná data</td></tr>';const ks=Object.keys(rows[0]);
+  return '<tr>'+ks.map(k=>`<th>${esc(k)}</th>`).join('')+'</tr>'+rows.map(r=>'<tr>'+ks.map(k=>typeof r[k]==='number'&&!numCols.includes('!'+k)?`<td class="n">${Number.isInteger(r[k])&&!/CZK|Základ|DPH|Celkem/i.test(k)?fmtI(r[k]):fmt(r[k])}</td>`:`<td>${esc(r[k])}</td>`).join('')+'</tr>').join('')}
+function renderOverview(){if(!project)return;const P0=[project];
+  $('#ovSup').innerHTML=tableHtml(qa(`SELECT MAX(supplier_name) Dodavatel, supplier_ico IČO, COUNT(*) Dokladů, ROUND(SUM(total_czk),2) "Celkem CZK", ROUND(100.0*SUM(total_czk)/(SELECT SUM(total_czk) FROM invoices WHERE project=?1),2) "Podíl %" FROM invoices WHERE project=?1 GROUP BY COALESCE(supplier_ico,supplier_name) ORDER BY 4 DESC LIMIT 200`,P0));
+  $('#ovMon').innerHTML=tableHtml(qa(`SELECT substr(COALESCE(duzp,issue_date),1,7) Měsíc, COUNT(*) Dokladů, ROUND(SUM(total_base),2) "Základ", ROUND(SUM(total_vat),2) "DPH", ROUND(SUM(total_czk),2) "Celkem CZK" FROM invoices WHERE project=? GROUP BY 1 ORDER BY 1`,P0));
+  $('#ovCat').innerHTML=tableHtml(qa(`SELECT COALESCE(cost_category,'(nezařazeno)') Kategorie, COUNT(*) Dokladů, ROUND(SUM(total_czk),2) "Celkem CZK" FROM invoices WHERE project=? GROUP BY 1 ORDER BY 3 DESC`,P0));
+  $('#ovType').innerHTML=tableHtml(qa(`SELECT doc_type Typ, currency Měna, sources Zdroj, COUNT(*) Dokladů, ROUND(SUM(total),2) "Celkem v měně", ROUND(AVG(confidence),0) "Jistota ø" FROM invoices WHERE project=? GROUP BY 1,2,3 ORDER BY 4 DESC`,P0))}
+function renderProject(){$('#pOwn').value=P.own||'';$('#pFrom').value=P.from||'';$('#pTo').value=P.to||'';$('#pBudget').value=P.budget||'';$('#pFx').value=P.fxs||'';$('#pLabels').value=P.labels.join('\n');$('#pRules').value=P.rules.map(r=>r.p+' => '+r.c).join('\n');$('#tpl').value=P.tpl||''}
+
+/* ---------- detail dokladu ---------- */
+const LABELS={doc_type:'Typ dokladu',invoice_no:'Číslo dokladu',vs:'Variabilní symbol',ks:'Konstantní symbol',ss:'Specifický symbol',order_no:'Objednávka',contract_no:'Smlouva',
+  supplier_name:'Dodavatel',supplier_ico:'IČO dodavatele',supplier_dic:'DIČ dodavatele',customer_name:'Odběratel',customer_ico:'IČO odběratele',customer_dic:'DIČ odběratele',
+  issue_date:'Vystaveno',duzp:'DUZP',due_date:'Splatnost',currency:'Měna',fx_rate:'Kurz',total_base:'Základ celkem',total_vat:'DPH celkem',advance_paid:'Odečtené zálohy',rounding:'Zaokrouhlení',total:'K úhradě',total_czk:'Celkem v CZK',
+  bank_account:'Účet',iban:'IBAN',bic:'BIC',cost_category:'Nákladová kategorie',note:'Poznámka auditora'};
+const NUMF=['fx_rate','total_base','total_vat','advance_paid','rounding','total','total_czk'];
+let navIds=[],previewUrl=null;
+async function fileFor(path){if(fileMap.has(path))return fileMap.get(path);
+  if(dirHandle){try{if((await dirHandle.queryPermission({mode:'read'}))!=='granted'&&(await dirHandle.requestPermission({mode:'read'}))!=='granted')return null;
+    const parts=path.split('/');if(parts[0]===dirHandle.name)parts.shift();let h=dirHandle;for(const p of parts.slice(0,-1))h=await h.getDirectoryHandle(p);
+    const f=await (await h.getFileHandle(parts[parts.length-1])).getFile();fileMap.set(path,f);return f}catch(e){return null}}return null}
+async function openDrawer(id,ids){if(ids)navIds=ids;const r=q1('SELECT i.*,f.path,f.method,f.id fid,f.pages,f.name fname FROM invoices i JOIN files f ON f.id=i.file_id WHERE i.id=?',[id]);if(!r)return;
+  const flds=qa('SELECT rowid,key,value FROM invoice_fields WHERE invoice_id=? ORDER BY key',[id]),vat=qa('SELECT * FROM invoice_vat WHERE invoice_id=? ORDER BY rate DESC',[id]),
+    items=qa('SELECT * FROM invoice_items WHERE invoice_id=? ORDER BY line_no',[id]),fl=qa('SELECT * FROM audit_flags WHERE invoice_id=? ORDER BY severity',[id]),raw=q1('SELECT text FROM raw_text WHERE file_id=?',[r.fid]);
+  const pos=navIds.indexOf(id);const d=$('#drawer');d.hidden=false;d.dataset.id=id;
+  d.innerHTML=`<div class="dhead"><h2 style="margin:0">Doklad #${id}</h2>${r.reviewed?'<span class="pill p-ok">ověřeno</span>':''}<span class="pill p-src">${esc(r.sources||r.format||'')}</span><span class="pill ${r.confidence>=+S.thr?'p-ok':'p-warn'}">jistota ${Math.round(r.confidence||0)} %</span>
+    <span style="margin-left:auto" class="row"><span class="muted small">${pos>-1?(pos+1)+' / '+navIds.length:''}</span><button class="btn ghost sm" id="dPrev" ${pos>0?'':'disabled'}>‹ Předchozí</button><button class="btn ghost sm" id="dNext" ${pos>-1&&pos<navIds.length-1?'':'disabled'}>Další ›</button><button class="btn ghost sm" id="dClose">Zavřít</button></span></div>
+  <div class="dbody"><div class="dprev" id="dPrevBox"><div class="muted small" style="padding:16px">Načítám náhled…</div></div><div class="dform">
+  <p class="muted mono small" style="word-break:break-all;margin-top:0">${esc(r.path)}${r.page?' · strana '+r.page:''} · ${esc(r.method)}</p>
+  ${fl.map(f=>`<div style="margin-bottom:4px"><span class="pill ${SEVC[f.severity]}">${f.severity}</span> ${esc(f.message)}</div>`).join('')}
+  <div class="kv" style="margin-top:12px">${Object.keys(LABELS).map(k=>`<div class="field"><label for="e_${k}">${LABELS[k]}</label><input id="e_${k}" data-k="${k}" value="${esc(NUMF.includes(k)&&r[k]!=null?String(r[k]).replace('.',','):r[k])}"${k==='note'||k==='supplier_name'||k==='customer_name'?' style="grid-column:span 2"':''}></div>`).join('')}</div>
+  <div class="row" style="margin:6px 0 4px"><button class="btn gold" id="dSave">Uložit a označit jako ověřené</button>${r.reviewed?'<button class="btn ghost sm" id="dUnrev">Zrušit ověření</button>':''}<span class="muted small"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> uloží a otevře další</span></div>
+  <h3>Rozpis DPH</h3><div class="tw"><table><tr><th>Sazba</th><th>Základ</th><th>DPH</th><th>Celkem</th></tr>${vat.map(v=>`<tr><td>${v.rate} %</td><td class="n">${fmt(v.base)}</td><td class="n">${fmt(v.vat)}</td><td class="n">${fmt((v.base||0)+(v.vat||0))}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Nerozpoznáno</td></tr>'}</table></div>
+  <h3>Položky (${items.length})</h3><div class="tw" style="max-height:260px"><table><tr><th>#</th><th>Kód</th><th>Popis</th><th>Množ.</th><th>MJ</th><th>Cena/MJ</th><th>Sazba</th><th>Bez DPH</th></tr>${items.map(i=>`<tr><td>${i.line_no??''}</td><td class="mono">${esc(i.code)}</td><td class="wrap">${esc(i.description)}</td><td class="n">${i.qty??''}</td><td>${esc(i.unit)}</td><td class="n">${fmt(i.unit_price)}</td><td>${i.vat_rate??''}</td><td class="n">${fmt(i.amount)}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">Položky se vytěží z ISDOC/XML nebo pomocí AI</td></tr>'}</table></div>
+  <h3>Další údaje (${flds.length})</h3><div id="fl">${flds.map(f=>`<div class="row" style="margin-bottom:5px;flex-wrap:nowrap"><input value="${esc(f.key)}" data-r="${f.rowid}" data-c="key" style="width:38%"><input value="${esc(f.value)}" data-r="${f.rowid}" data-c="value" style="flex:1;min-width:0"><button class="btn ghost sm" data-del="${f.rowid}" aria-label="Smazat údaj">×</button></div>`).join('')}</div>
+  <div class="row" style="flex-wrap:nowrap"><input id="nk" placeholder="Nový údaj" style="width:38%"><input id="nv" placeholder="Hodnota" style="flex:1;min-width:0"><button class="btn ghost sm" id="addF">Přidat</button></div>
+  ${raw&&raw.text?`<h3>Rozpoznaný text</h3><details><summary class="muted small">Zobrazit (${fmtI(raw.text.length)} znaků)</summary><div class="log" style="max-height:400px">${esc(raw.text)}</div></details>`:''}
+  </div></div>`;
+  $('#dClose').onclick=closeDrawer;$('#dPrev').onclick=()=>openDrawer(navIds[pos-1]);$('#dNext').onclick=()=>openDrawer(navIds[pos+1]);
+  d.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('input',()=>el.classList.add('chg')));
+  $('#addF').onclick=()=>{const k=$('#nk').value.trim();if(!k)return;run('INSERT INTO invoice_fields VALUES(?,?,?)',[id,k,$('#nv').value]);saveSoon();openDrawer(id)};
+  d.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{run('DELETE FROM invoice_fields WHERE rowid=?',[b.dataset.del]);saveSoon();openDrawer(id)});
+  $('#dSave').onclick=()=>saveDrawer(id,false);if($('#dUnrev'))$('#dUnrev').onclick=()=>{run('UPDATE invoices SET reviewed=0 WHERE id=?',[id]);saveSoon();openDrawer(id);renderList()};
+  // náhled
+  const box=$('#dPrevBox');if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null}
+  const f=await fileFor(r.path);if($('#drawer').dataset.id!=String(id))return;
+  if(!f){box.innerHTML=`<div class="muted small" style="padding:16px">Originál není v této relaci k dispozici. Načtěte složku znovu (hotové soubory se přeskočí)${window.showDirectoryPicker?' nebo ji připojte natrvalo na kartě Import':''}.</div>`;return}
+  const e=ext(f.name);previewUrl=URL.createObjectURL(f);
+  if(e==='pdf')box.innerHTML=`<iframe title="Náhled dokladu" src="${previewUrl}#page=${r.page||1}&view=FitH"></iframe>`;
+  else if(/^(jpe?g|png|gif|webp|bmp)$/.test(e))box.innerHTML=`<img alt="Náhled dokladu" src="${previewUrl}">`;
+  else if(/^(tiff?)$/.test(e)){try{const cv=(await imageCanvases(f,await f.arrayBuffer(),r.page||1)).pop();box.innerHTML=`<img alt="Náhled dokladu" src="${cv.toDataURL('image/jpeg',0.8)}">`}catch(err){box.textContent=err.message}}
+  else{const t=await f.text();box.innerHTML=`<div class="log" style="flex:1;max-height:none;margin:0;border:0">${esc(t.slice(0,200000))}</div>`}}
+function closeDrawer(){$('#drawer').hidden=true;if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null}}
+function saveDrawer(id,next){const d=$('#drawer');
+  for(const el of d.querySelectorAll('[data-k]')){const k=el.dataset.k;let v=el.value.trim()||null;
+    if(NUMF.includes(k))v=CORE.num(v);else if(['issue_date','duzp','due_date'].includes(k)&&v)v=CORE.isoD(v)||v;else if(['supplier_ico','customer_ico'].includes(k)&&v)v=CORE.normIco(v);
+    run(`UPDATE invoices SET ${k}=? WHERE id=?`,[v,id])}
+  const r=q1('SELECT currency,total,total_czk,fx_rate FROM invoices WHERE id=?',[id]);if(r.currency==='CZK')run('UPDATE invoices SET total_czk=total WHERE id=?',[id]);else if(r.fx_rate&&r.total!=null&&!d.querySelector('#e_total_czk').classList.contains('chg'))run('UPDATE invoices SET total_czk=ROUND(total*fx_rate,2) WHERE id=?',[id]);
+  for(const el of d.querySelectorAll('[data-r]'))run(`UPDATE invoice_fields SET ${el.dataset.c==='key'?'key':'value'}=? WHERE rowid=?`,[el.value,el.dataset.r]);
+  run('UPDATE invoices SET reviewed=1 WHERE id=?',[id]);runChecks(true);renderList();renderStats();toast('Uloženo a ověřeno');
+  const pos=navIds.indexOf(id);if(pos>-1&&pos<navIds.length-1)openDrawer(navIds[pos+1]);else closeDrawer()}
+
+/* ---------- export ---------- */
+function wideRows(){const base=qa(`SELECT i.id invoice_id,i.doc_type,i.format,i.invoice_no,i.uuid,i.vs,i.ks,i.ss,i.order_no,i.contract_no,i.supplier_name,i.supplier_ico,i.supplier_dic,i.customer_name,i.customer_ico,i.customer_dic,
+  i.issue_date,i.duzp,i.due_date,i.currency,i.fx_rate,i.total_base,i.total_vat,i.advance_paid,i.rounding,i.total,i.total_czk,i.bank_account,i.iban,i.bic,i.cost_category,i.folder,i.page,i.confidence,i.sources,i.reviewed,i.note,
+  f.path,f.name file_name,f.sha256,(SELECT COUNT(*) FROM audit_flags a WHERE a.invoice_id=i.id) flags,(SELECT group_concat(code,', ') FROM audit_flags a WHERE a.invoice_id=i.id) flag_codes
+  FROM invoices i JOIN files f ON f.id=i.file_id WHERE i.project=? ORDER BY i.id`,[project]);
+  const vat=new Map();for(const v of qa('SELECT v.* FROM invoice_vat v JOIN invoices i ON i.id=v.invoice_id WHERE i.project=?',[project]))(vat.get(v.invoice_id)||vat.set(v.invoice_id,[]).get(v.invoice_id)).push(v);
+  const rates=[...new Set([...vat.values()].flat().map(v=>v.rate))].sort((a,b)=>b-a);
+  const extra=qa('SELECT f.invoice_id,f.key,f.value FROM invoice_fields f JOIN invoices i ON i.id=f.invoice_id WHERE i.project=? AND f.key NOT LIKE \'QR %\' AND f.key NOT LIKE \'XML %\'',[project]);
+  const keys=[...new Set(extra.map(e=>e.key))].sort((a,b)=>a.localeCompare(b,'cs'));const map=new Map();for(const e of extra){const m=map.get(e.invoice_id)||map.set(e.invoice_id,{}).get(e.invoice_id);m[e.key]=m[e.key]?m[e.key]+' | '+e.value:e.value}
+  for(const r of base){const vs=vat.get(r.invoice_id)||[];for(const rt of rates){const v=vs.find(x=>x.rate===rt);r[`base_${rt}`]=v?v.base:null;r[`vat_${rt}`]=v?v.vat:null}
+    const m=map.get(r.invoice_id)||{};for(const k of keys)r['+ '+k]=m[k]??null}
+  return base}
+const DATE_COLS=/^(issue_date|duzp|due_date)$/;
+function forExcel(rows){return rows.map(r=>{const o={};for(const [k,v] of Object.entries(r))o[k]=DATE_COLS.test(k)&&v&&/^\d{4}-\d{2}-\d{2}$/.test(v)?new Date(v+'T00:00:00'):v;return o})}
+function tables(){const P0=[project];return {
+  Doklady:wideRows(),
+  Rozpis_DPH:qa('SELECT v.invoice_id,i.invoice_no,i.supplier_ico,i.currency,v.rate,v.base,v.vat FROM invoice_vat v JOIN invoices i ON i.id=v.invoice_id WHERE i.project=?',P0),
+  Polozky:qa('SELECT t.invoice_id,i.invoice_no,i.supplier_ico,i.currency,t.line_no,t.code,t.description,t.qty,t.unit,t.unit_price,t.vat_rate,t.amount,t.vat,t.amount_incl FROM invoice_items t JOIN invoices i ON i.id=t.invoice_id WHERE i.project=?',P0),
+  Dalsi_udaje:qa('SELECT t.invoice_id,t.key,t.value FROM invoice_fields t JOIN invoices i ON i.id=t.invoice_id WHERE i.project=?',P0),
+  Kontroly:qa('SELECT a.invoice_id,i.invoice_no,i.supplier_name,a.code,a.severity,a.message,i.total,i.currency,i.reviewed FROM audit_flags a JOIN invoices i ON i.id=a.invoice_id WHERE i.project=?',P0),
+  Dodavatele:qa('SELECT v.*,a.name ares_name,a.dic ares_dic,a.ended ares_zanik,a.address ares_adresa FROM v_by_supplier v LEFT JOIN ares a ON a.ico=v.supplier_ico WHERE v.project=?',P0),
+  Soubory:qa('SELECT id file_id,path,name,size,pages,docs,status,method,confidence,error,processed_at,ms,sha256 FROM files WHERE project=?',P0)}}
+function dl(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),10000)}
+const stamp=()=>project.replace(/[^\p{L}\d_-]+/gu,'_')+'_'+new Date().toISOString().slice(0,10);
+function xlsx(sheets,name){const wb=XLSX.utils.book_new();
+  for(const [n,rows0] of Object.entries(sheets)){const rows=forExcel(rows0);const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{'(prázdné)':''}],{cellDates:true,dateNF:'dd.mm.yyyy'});
+    if(ws['!ref']){ws['!autofilter']={ref:ws['!ref']};const ks=Object.keys(rows[0]||{});ws['!cols']=ks.map(k=>({wch:Math.min(48,Math.max(k.length+2,...rows.slice(0,200).map(r=>String(r[k]instanceof Date?'01.01.2026':r[k]??'').length+1)))}))}
+    ws['!freeze']={xSplit:0,ySplit:1};XLSX.utils.book_append_sheet(wb,ws,n.slice(0,31))}
+  XLSX.writeFile(wb,name,{compression:true})}
+function toCsv(rows){if(!rows.length)return '﻿';const k=[...new Set(rows.flatMap(Object.keys))];
+  const c=v=>{if(v==null)return '';if(typeof v==='number')return String(v).replace('.',',');v=String(v);return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  return '﻿'+k.map(c).join(';')+'\r\n'+rows.map(r=>k.map(x=>c(r[x])).join(';')).join('\r\n')}
+const TPL_DEF=`Číslo dokladu = invoice_no
+Typ dokladu = doc_type
+Dodavatel = supplier_name
+IČO dodavatele = supplier_ico
+DIČ dodavatele = supplier_dic
+Datum vystavení = issue_date
+DUZP = duzp
+Splatnost = due_date
+Variabilní symbol = vs
+Základ DPH = total_base
+DPH = total_vat
+Celkem k úhradě = total
+Měna = currency
+Celkem CZK = total_czk
+Nákladová kategorie = cost_category
+Ověřeno = reviewed
+Nálezy = flag_codes
+Soubor = path`;
+function exportTpl(){const lines=($('#tpl').value||TPL_DEF).split('\n').map(l=>l.split('=')).filter(x=>x.length>=2).map(([a,...b])=>[a.trim(),b.join('=').trim()]);
+  const rows=wideRows().map(r=>{const o={};for(const [h,f] of lines)o[h]=/^["'].*["']$/.test(f)?f.slice(1,-1):(r[f]??r['+ '+f.replace(/^\+\s*/,'')]??null);return o});
+  xlsx({Doklady:rows},`audit_sablona_${stamp()}.xlsx`)}
+
+/* ---------- vstup souborů ---------- */
+function enqueue(items){const ok=items.filter(it=>ACCEPT.test(it.path)&&!/(^|\/)\.|Thumbs\.db|desktop\.ini/i.test(it.path));
+  queue.push(...ok);$('#queueInfo').textContent=fmtI(queue.length)+' ve frontě';$('#startBtn').disabled=!queue.length||running;
+  log(`Přidáno ${fmtI(ok.length)} souborů${items.length-ok.length?`, přeskočeno ${items.length-ok.length} nepodporovaných`:''}.`);if(running===false&&ok.length&&!project)toast('Před spuštěním založte projekt')}
+async function walkEntry(entry,prefix,out){if(entry.isFile){const f=await new Promise((r,j)=>entry.file(r,j));out.push({file:f,path:prefix+f.name})}
+  else if(entry.isDirectory){const rd=entry.createReader();let batch;do{batch=await new Promise((r,j)=>rd.readEntries(r,j));for(const e of batch)await walkEntry(e,prefix+entry.name+'/',out)}while(batch.length)}}
+async function walkHandle(h,prefix,out){for await (const [name,e] of h.entries()){if(e.kind==='file')out.push({file:await e.getFile(),path:prefix+name});else await walkHandle(e,prefix+name+'/',out)}}
+
+/* ---------- start ---------- */
+(async()=>{
+  $('#log').textContent='';
+  const missing=[['initSqlJs','databáze'],['pdfjsLib','PDF'],['XLSX','Excel'],['JSZip','ZIP/ISDOCX'],['Tesseract','OCR'],['jsQR','QR kódy'],['UTIF','TIFF']].filter(([g])=>!window[g]).map(x=>x[1]);
+  if(missing.length)log('Nenačetly se knihovny: '+missing.join(', ')+'. Zkontrolujte připojení k internetu a obnovte stránku.');
+  if(!window.initSqlJs)return;
+  SQL=await initSqlJs({locateFile:f=>'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/'+f});
+  let stored=null;try{stored=await idbGet('db','main')}catch(e){}
+  db=stored?new SQL.Database(stored):new SQL.Database();migrate();
+  try{project=localStorage.getItem('af_proj')||''}catch(e){}
+  if(!q1('SELECT 1 x FROM projects WHERE name=?',[project]))project=q1('SELECT name FROM projects ORDER BY created')?.name||'';
+  loadP();renderProjects();renderStats();renderBadge();refreshFilters();renderProject();
+  try{dirHandle=await idbGet('handles',project)||null}catch(e){}
+  $('#dirPick').hidden=!window.showDirectoryPicker;
+  for(const [k,id] of [['lang','sLang'],['workers','sWorkers'],['thr','sThr'],['pages','sPages'],['scale','sScale'],['key','sKey'],['model','sModel'],['aiMode','sAiMode']])$('#'+id).value=S[k];
+  for(const [k,id] of [['qr','sQr'],['split','sSplit'],['ocrText','sOcrText'],['ares','sAres'],['aiAll','sAiAll']])$('#'+id).checked=!!S[k];
+  const n=project?q1('SELECT COUNT(*) n FROM invoices WHERE project=?',[project]).n:0;
+  log(`Připraveno.${stored?' Databáze obnovena z prohlížeče.':''}${project?` Projekt „${project}“: ${fmtI(n)} dokladů.`:' Založte projekt vpravo nahoře.'}`);
+  if(location.protocol==='file:')log('Aplikace běží ze souboru. OCR i export fungují. Ověření v ARES může prohlížeč blokovat, pak ji spusťte z webu.');
+})();
+
+/* ---------- události ---------- */
+$('#tabs').onclick=e=>{const b=e.target.closest('button');const t=b&&b.dataset.t;if(!t)return;$$('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.t===t));
+  $$('main>section').forEach(s=>s.hidden=s.id!=='t-'+t);if(!db)return;if(t==='list')renderList();if(t==='checks')renderChecks();if(t==='overview')renderOverview();if(t==='project')renderProject();if(t==='export')$('#tpl').value=P.tpl||TPL_DEF};
+$('#projAdd').onclick=()=>{const n=$('#projNew').value.trim();if(!n)return;run('INSERT OR IGNORE INTO projects VALUES(?,?)',[n,new Date().toISOString()]);switchProject(n);$('#projNew').value='';saveSoon();toast(`Projekt „${n}“ založen`)};
+$('#projNew').onkeydown=e=>{if(e.key==='Enter')$('#projAdd').click()};
+async function switchProject(n){project=n;try{localStorage.setItem('af_proj',n)}catch(e){}page=0;loadP();renderProjects();renderStats();renderBadge();refreshFilters();renderProject();renderList();renderChecks();try{dirHandle=await idbGet('handles',project)||null}catch(e){dirHandle=null}}
+$('#projSel').onchange=e=>switchProject(e.target.value);
+$('#dirIn').onchange=e=>{enqueue([...e.target.files].map(f=>({file:f,path:f.webkitRelativePath||f.name})));e.target.value=''};
+$('#fileIn').onchange=e=>{enqueue([...e.target.files].map(f=>({file:f,path:f.name})));e.target.value=''};
+$('#dirPick').onclick=async()=>{try{const h=await showDirectoryPicker({mode:'read'});dirHandle=h;if(project)await idbPut('handles',project,h);const out=[];log('Procházím složku '+h.name+'…');await walkHandle(h,h.name+'/',out);enqueue(out)}catch(e){if(e.name!=='AbortError')log('Složku nelze otevřít: '+e.message)}};
+const drop=$('#drop');['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',async e=>{const its=[...e.dataTransfer.items].map(i=>i.webkitGetAsEntry&&i.webkitGetAsEntry()).filter(Boolean);const out=[];log('Načítám přetažené položky…');for(const en of its)await walkEntry(en,'',out);enqueue(out)});
+$('#startBtn').onclick=runQueue;$('#stopBtn').onclick=()=>{stopFlag=true;log('Zastavuji po dokončení rozpracovaných souborů…')};
+$('#retryBtn').onclick=()=>{queue.push(...failed.splice(0));$('#retryBtn').hidden=true;runQueue()};
+let qT;$('#q').oninput=()=>{clearTimeout(qT);qT=setTimeout(()=>{page=0;renderList()},200)};
+for(const id of ['#fStat','#fType','#fCur'])$(id).onchange=()=>{page=0;renderList()};
+for(const id of ['#fSev','#fCode'])$(id).onchange=renderChecks;
+$('#prev').onclick=()=>{if(page>0){page--;renderList()}};$('#next').onclick=()=>{page++;renderList()};
+$('#tbl').addEventListener('click',e=>{const th=e.target.closest('th[data-s]');if(th){const k=th.dataset.s;sort=sort.k===k?{k,d:-sort.d}:{k,d:k==='id'?-1:1};renderList()}});
+$('#reviewBtn').onclick=()=>{const ids=listIds();const first=ids.find(id=>!q1('SELECT reviewed FROM invoices WHERE id=?',[id]).reviewed)??ids[0];if(first)openDrawer(first,ids);else toast('Žádné doklady k ověření')};
+document.addEventListener('click',e=>{const tr=e.target.closest('tr.click');if(!tr)return;if(tr.dataset.code){$('#fCode').value=tr.dataset.code;renderChecks();return}
+  if(tr.closest('#tbl'))openDrawer(+tr.dataset.id,listIds());else openDrawer(+tr.dataset.id,[...$$('#chkTbl tr.click')].map(t=>+t.dataset.id).filter((v,i,a)=>a.indexOf(v)===i))});
+document.addEventListener('keydown',e=>{if($('#drawer').hidden)return;const id=+$('#drawer').dataset.id;
+  if(e.key==='Escape')closeDrawer();if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();saveDrawer(id,true)}
+  if(e.altKey&&e.key==='ArrowRight')$('#dNext')?.click();if(e.altKey&&e.key==='ArrowLeft')$('#dPrev')?.click()});
+$('#runChecks').onclick=()=>runChecks();$('#aresBtn').onclick=aresAll;
+$('#pSave').onclick=()=>{if(!project)return;saveP('own',$('#pOwn').value);saveP('from',$('#pFrom').value);saveP('to',$('#pTo').value);saveP('budget',$('#pBudget').value);saveP('fxs',$('#pFx').value);saveP('labels',$('#pLabels').value);saveP('rules',$('#pRules').value);
+  loadP();
+  let n=0;for(const [c,rate] of Object.entries(P.fx)){run('UPDATE invoices SET fx_rate=?,total_czk=ROUND(total*?,2) WHERE project=? AND currency=? AND (fx_rate IS NULL OR fx_rate=0)',[rate,rate,project,c]);n+=db.getRowsModified()}
+  runChecks(true);renderStats();$('#pMsg').textContent='Uloženo.'+(n?` Přepočteno ${n} dokladů v cizí měně.`:'')+(P.ownIcos.length?' Pro přesnější určení dodavatele u už načtených skenů použijte „Znovu vytěžit“.':'');saveSoon()};
+$('#pApply').onclick=()=>{loadP();applyRules();renderOverview()};$('#pReparse').onclick=reparse;
+$('#xXlsx').onclick=()=>{if(!project)return;xlsx(tables(),`audit_${stamp()}.xlsx`)};
+$('#xCsv').onclick=async()=>{if(!project)return;for(const [n,r] of Object.entries(tables())){dl(new Blob([toCsv(r)],{type:'text/csv;charset=utf-8'}),`${stamp()}_${n}.csv`);await sleep(400)}};
+$('#xDb').onclick=()=>dl(new Blob([db.export()],{type:'application/x-sqlite3'}),`audit_${stamp()}.sqlite`);
+$('#xTpl').onclick=()=>{if(!project)return;saveP('tpl',$('#tpl').value);loadP();exportTpl();saveSoon()};
+$('#tplDef').onclick=()=>$('#tpl').value=TPL_DEF;
+$('#tplFields').onclick=()=>{const r=wideRows()[0];$('#tpl').value+=(($('#tpl').value?'\n':'')+'# dostupná pole: '+(r?Object.keys(r).join(', '):'(zatím žádné doklady)')).replace(/\n# dostupná pole.*$/s,'')+'\n# dostupná pole: '+(r?Object.keys(r).join(', '):'')};
+$('#dbIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const nd=new SQL.Database(new Uint8Array(await f.arrayBuffer()));db=nd;migrate();project=q1('SELECT name FROM projects ORDER BY created')?.name||'';switchProject(project);await persist();log('Databáze nahrána: '+f.name)}catch(err){toast('Soubor není platná databáze: '+err.message)}};
+$('#wipe').onclick=()=>$('#wipeConfirm').hidden=false;$('#wipeNo').onclick=()=>$('#wipeConfirm').hidden=true;
+$('#wipeYes').onclick=async()=>{deleteInvoices('project=?',[project]);run('DELETE FROM raw_text WHERE file_id IN (SELECT id FROM files WHERE project=?)',[project]);run('DELETE FROM file_paths WHERE file_id IN (SELECT id FROM files WHERE project=?)',[project]);
+  run('DELETE FROM files WHERE project=?',[project]);run('DELETE FROM project_settings WHERE project=?',[project]);run('DELETE FROM projects WHERE name=?',[project]);
+  $('#wipeConfirm').hidden=true;await switchProject(q1('SELECT name FROM projects')?.name||'');await persist();toast('Projekt smazán')};
+let lastSql=[];
+$('#sqlRun').onclick=()=>{try{const sql=$('#sqlQ').value;const st=db.prepare(sql);if(/:project/.test(sql))st.bind({':project':project});const cols=st.getColumnNames();const rows=[];while(st.step()&&rows.length<50000)rows.push(st.getAsObject());st.free();
+  lastSql=rows;$('#sqlTbl').innerHTML=cols.length?('<tr>'+cols.map(c=>`<th>${esc(c)}</th>`).join('')+'</tr>'+rows.slice(0,2000).map(r=>'<tr>'+cols.map(c=>typeof r[c]==='number'?`<td class="n">${r[c]}</td>`:`<td>${esc(r[c])}</td>`).join('')+'</tr>').join('')):'<tr><td>Provedeno.</td></tr>';
+  if(!/^\s*select/i.test(sql))saveSoon()}catch(e){$('#sqlTbl').innerHTML=`<tr><td class="p-bad">${esc(e.message)}</td></tr>`}};
+$('#sqlX').onclick=()=>xlsx({Dotaz:lastSql},`dotaz_${stamp()}.xlsx`);
+$('#saveSet').onclick=async()=>{const old=S.lang+S.workers;Object.assign(S,{lang:$('#sLang').value.trim()||DEF.lang,workers:Math.max(1,Math.min(8,+$('#sWorkers').value||2)),thr:+$('#sThr').value,pages:Math.max(1,+$('#sPages').value||3),scale:+$('#sScale').value||2400,
+  key:$('#sKey').value.trim(),model:$('#sModel').value.trim()||DEF.model,aiMode:$('#sAiMode').value,qr:$('#sQr').checked,split:$('#sSplit').checked,ocrText:$('#sOcrText').checked,ares:$('#sAres').checked,aiAll:$('#sAiAll').checked});
+  try{localStorage.setItem('af_set',JSON.stringify(S))}catch(e){}if(old!==S.lang+S.workers&&ocrPool){try{await ocrPool.terminate()}catch(e){}ocrPool=null}$('#setMsg').textContent='Uloženo.'};
+window.addEventListener('beforeunload',e=>{if(running){e.preventDefault();e.returnValue=''}});
+</script>
+</body>
+</html>
