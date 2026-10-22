@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>YeY Aplikace</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap&subset=latin-ext" rel="stylesheet">
 <style>
 :root{
   --bg:#0b0b0c; --bg2:#151517; --glass:rgba(255,255,255,.06); --line:rgba(255,255,255,.09);
@@ -32,10 +32,17 @@ body{
 .head{text-align:center;margin:34px 0 8px}
 .clock{font-size:76px;font-weight:700;letter-spacing:-3px;line-height:1;
   background:linear-gradient(180deg,#fff 0%,#d9d9de 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
-.date{color:var(--muted);font-weight:500;margin-top:6px;text-transform:capitalize}
-.brand{display:flex;justify-content:center;align-items:center;gap:10px;margin:26px 0 6px}
-.brand b{font-weight:800;font-size:22px;color:var(--gold);letter-spacing:.5px}
-.brand span{color:var(--muted);font-size:14px}
+.date{color:var(--muted);font-weight:500;margin-top:6px}
+.date::first-letter{text-transform:uppercase}
+.brand{display:flex;justify-content:center;align-items:center;gap:12px;margin:26px auto 22px;text-decoration:none;width:max-content}
+.yey-logo{width:44px;height:44px;border-radius:11px;background:#F2B705;display:grid;place-items:center;position:relative;overflow:hidden;
+  box-shadow:0 6px 20px rgba(242,183,5,.3)}
+.yey-logo svg{width:26px;height:26px;fill:none;stroke:#1D272F;stroke-linecap:round;stroke-linejoin:round}
+.yey-logo::after{content:"";position:absolute;left:0;right:0;bottom:0;height:7px;background:repeating-linear-gradient(90deg,#1D272F 0 1.5px,transparent 1.5px 6px);opacity:.45}
+.brand-text{display:flex;flex-direction:column;line-height:1.05}
+.brand-text b{font:700 28px/1 'Barlow Condensed',Inter,sans-serif;color:#F2B705;letter-spacing:.2px}
+.brand-text span{font:600 14px/1.15 'Barlow Condensed',Inter,sans-serif;color:#E6EAED;letter-spacing:.3px}
+.brand:hover .yey-logo{transform:translateY(-1px)}
 .tape{height:10px;margin:0 auto 28px;max-width:220px;border-radius:2px;
   background:repeating-linear-gradient(90deg,#1a1a1a 0 1px,transparent 1px 8px),linear-gradient(var(--gold),var(--gold2));
   box-shadow:0 0 18px rgba(245,197,24,.25)}
@@ -59,6 +66,9 @@ body{
 .ico-wrap{position:relative}
 .t-gold{background:linear-gradient(145deg,#ffd84d,#d4a017 60%,#a87b00)}
 .t-gold svg{color:#111}
+.t-yey{background:#F2B705}
+.t-yey svg{color:#1D272F}
+.t-yey::after{content:"";position:absolute;left:0;right:0;bottom:0;height:9px;background:repeating-linear-gradient(90deg,#1D272F 0 1.5px,transparent 1.5px 7px);opacity:.45}
 .t-dark{background:linear-gradient(145deg,#2c2c30,#141416)}
 .t-dark svg{color:var(--gold)}
 .t-grey{background:linear-gradient(145deg,#5a5a60,#2e2e33)}
@@ -83,8 +93,10 @@ footer{text-align:center;color:#5c5c62;font-size:12px;margin-top:10px}
     <div class="date" id="date"></div>
   </div>
 
-  <div class="brand"><b>YeY</b><span>aplikace</span></div>
-  <div class="tape"></div>
+  <a class="brand" href="https://yey.cz" aria-label="YeY – přejít na yey.cz">
+    <span class="yey-logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 3.5l7 10 7-10M12 13.5v8" stroke-width="3.6"/></svg></span>
+    <span class="brand-text"><b>YeY</b><span>Aplikace</span></span>
+  </a>
 
   <label class="search">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -103,7 +115,7 @@ footer{text-align:center;color:#5c5c62;font-size:12px;margin-top:10px}
    tone: gold | dark | grey ; dock: true = i v doku dole ; badge: "NOVÉ" apod. */
 const APPS = [
   {name:"Rozpočet stavby", url:"rozpocet.html", group:"Stavba", tone:"gold", icon:"calc", dock:true, badge:"NOVÉ"},
-  {name:"YeY Kancelář",    url:"https://yey.cz/yey.html", group:"Kancelář", tone:"gold", icon:"office", dock:true},
+  {name:"YeY Kancelář",    url:"https://yey.cz/yey.html", group:"Kancelář", tone:"yey", icon:"yey", dock:true},
   {name:"Audit faktur",    url:"audit.html",  group:"Kancelář", tone:"dark", icon:"invoice", dock:true},
   {name:"Pixel Trezor",    url:"stego.html",    group:"Nástroje", tone:"dark", icon:"lock", dock:true},
 ];
@@ -117,6 +129,7 @@ const ICONS = {
   lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.5" r="1.5"/></svg>',
   game:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18h6a3 3 0 0 0 0-6H8a3 3 0 0 1 0-6h10"/><circle cx="19" cy="6" r="1.5" fill="currentColor"/></svg>',
   office:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/><path d="M11 13v2h2v-2"/></svg>',
+  yey:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5l7 10 7-10M12 13.5v8" stroke-width="3.6"/></svg>',
   app:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>'
 };
 
