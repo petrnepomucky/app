@@ -15,7 +15,7 @@
   <script type="module" crossorigin src="./vykresy-assets/rolldown-runtime-XKyaHtl9.js"></script>
   <script type="module" crossorigin src="./vykresy-assets/lib-B0Tn4OAn.js"></script>
   <script type="module" crossorigin src="./vykresy-assets/cad-simple-viewer-Co3kbiLV.js"></script>
-  <script type="module" crossorigin src="./vykresy-assets/main-BteKb9xl.js"></script>
+  <script type="module" crossorigin src="./vykresy-assets/main-DYJdEKvQ.js"></script>
 <style>
   /* ===== YeY téma (app.yey.cz) ===== */
   :root{--psas-green:#f5c518;--psas-green-dark:#f5c518;--psas-orange:#f5c518;--psas-orange-dark:#d4a017;
@@ -63,6 +63,8 @@
   .modal-actions .btn{background:#f5c518;border-color:#f5c518;color:#111}
   .facts{background:rgba(245,197,24,.06);border-color:rgba(245,197,24,.25);color:#e6eaed}
   .toast{background:#f5c518;color:#111}
+  .layer-tip{position:absolute;display:none;z-index:6;pointer-events:none;background:rgba(21,21,23,.94);color:#f5c518;border:1px solid rgba(245,197,24,.4);font-size:12px;padding:4px 8px;border-radius:6px;white-space:nowrap}
+  #viewer.hiding canvas{cursor:pointer!important}
 </style>
 </head>
 <body>
@@ -82,12 +84,15 @@
 
 <div class="toolbar">
   <button class="btn primary" id="openBtn">Otevřít výkres</button>
-  <button class="btn" id="fitBtn" disabled title="Zobrazit celý výkres">⤢ Celý výkres</button>
+  <button class="btn" id="fitBtn" disabled title="Zobrazit celý výkres včetně všech objektů">⤢ Celý výkres</button>
+  <button class="btn" id="smartBtn" disabled title="Chytrý zoom – přiblíží hlavní část výkresu a ignoruje zatoulané objekty daleko od kresby">🎯 Chytrý zoom</button>
   <button class="btn" id="layersBtn" disabled>☰ Hladiny</button>
+  <button class="btn" id="hideLayerBtn" disabled title="Klikni na čáru nebo text ve výkresu a jeho hladina se skryje">👆 Skrýt kliknutím</button>
+  <button class="btn" id="undoLayerBtn" style="display:none">↶ Vrátit</button>
   <button class="btn" id="measDistBtn" disabled title="Změřit vzdálenost">📏 Vzdálenost</button>
   <button class="btn" id="measAreaBtn" disabled title="Změřit plochu a obvod">▱ Plocha</button>
-  <button class="btn" id="bgBtn" title="Přepnout pozadí">Světlé / tmavé pozadí</button>
-  <button class="btn" id="pngBtn" disabled title="Uložit celý výkres jako obrázek">⬇ Uložit jako PNG</button>
+  <button class="btn" id="bgBtn" title="Přepnout světlé / tmavé pozadí">◐ Pozadí</button>
+  <button class="btn" id="pngBtn" disabled title="Uložit celý výkres jako obrázek">⬇ PNG</button>
   <span class="file" id="fileName"></span>
 </div>
 
@@ -130,7 +135,7 @@
     <h3 id="infoTitle">O nástroji</h3>
     <div class="modal-bar"></div>
     <p><b>Prohlížeč výkresů DWG a DXF</b><br>Aplikace <b>YeY</b> · app.yey.cz</p>
-    <p>Zobrazí výkresy z AutoCADu bez nutnosti mít AutoCAD. Umožňuje přiblížení, posun, zapínání a vypínání hladin, měření vzdáleností a ploch s přichytáváním k bodům výkresu, přepnutí pozadí a uložení výkresu jako obrázek. Výkres se zpracovává lokálně v prohlížeči a nikam se neodesílá.</p>
+    <p>Zobrazí výkresy z AutoCADu bez nutnosti mít AutoCAD. Umožňuje přiblížení, posun, chytrý zoom (ignoruje zatoulané objekty u chybně uložených výkresů), zapínání a vypínání hladin i kliknutím na objekt, měření vzdáleností a ploch s přichytáváním k bodům výkresu, přepnutí pozadí a uložení výkresu jako obrázek. Výkres se zpracovává lokálně v prohlížeči a nikam se neodesílá.</p>
     <p>DWG je uzavřený formát Autodesku. Většina výkresů se zobrazí správně, u složitých výkresů z nejnovějších verzí AutoCADu se ale některé prvky (šrafy, kóty, speciální objekty) nemusí vykreslit přesně. Rozhodující je vždy originál v AutoCADu.</p>
     <p>Při prvním spuštění se z internetu stáhnou písma pro texty ve výkresu.</p>
     <div class="facts">
