@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Obraz Trezor">
+<link rel="apple-touch-icon" href="stego/apple-touch-icon.png">
+<link rel="icon" href="stego/icon-192.png">
+<title>Obraz Trezor</title>
+<style>
+  :root{--bg:#0b0b0c;--surface:#151414;--surface-2:#201e1b;--line:#322e28;--fg:#f2ede2;--fg-soft:#a69c88;--gold:#d8b25c;--gold-deep:#bd9640;--gold-soft:rgba(216,178,92,.13);--danger:#e3826a;--radius:14px;
+    color-scheme:dark;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:30px max(16px,env(safe-area-inset-left,0px)) 56px}
+  .back{display:inline-flex;align-items:center;gap:6px;color:var(--fg-soft);text-decoration:none;font-size:.85rem;margin-bottom:18px}
+  .back:hover{color:var(--gold)}
+  .eyebrow{font-weight:600;letter-spacing:.14em;text-transform:uppercase;font-size:.68rem;color:var(--gold)}
+  h1{font-weight:700;font-size:clamp(1.9rem,6vw,2.5rem);margin:8px 0 4px;letter-spacing:-.01em}
+  .rule{height:3px;width:72px;margin:10px 0 14px;background:repeating-linear-gradient(90deg,var(--gold) 0 2px,transparent 2px 7px)}
+  .sub{color:var(--fg-soft);max-width:60ch;font-size:.95rem;margin:0}
+  .drop{margin-top:24px;border:2px dashed var(--line);border-radius:18px;background:var(--surface);padding:44px 20px;text-align:center;cursor:pointer;transition:.15s;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .drop:hover,.drop.hot{border-color:var(--gold);background:var(--surface-2)}
+  .drop svg{width:52px;height:52px;color:var(--gold)}
+  .drop b{font-size:1.15rem}
+  .drop small{color:var(--fg-soft);font-size:.86rem;max-width:44ch}
+  .opts{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px}
+  .opts summary{cursor:pointer;color:var(--fg-soft);font-size:.9rem}
+  .opts summary:hover{color:var(--gold)}
+  .opts .in{display:grid;gap:12px;margin-top:12px}
+  label.chk{display:flex;gap:9px;align-items:center;font-size:.92rem;cursor:pointer}
+  input[type=checkbox]{accent-color:var(--gold);width:17px;height:17px}
+  input[type=password],input[type=text]{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:10px;padding:10px 12px;font:inherit}
+  input:focus{outline:none;border-color:var(--gold)}
+  .styles{display:flex;flex-wrap:wrap;gap:8px}
+  .styles button{appearance:none;border:1px solid var(--line);background:var(--bg);color:var(--fg-soft);border-radius:999px;padding:6px 13px;font:inherit;font-size:.85rem;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  .styles button i{width:14px;height:14px;border-radius:50%;display:inline-block}
+  .styles button.on{border-color:var(--gold);color:var(--fg);background:var(--gold-soft)}
+  .card{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;display:none}
+  .card.on{display:block}
+  .card h2{font-size:1.05rem;margin:0 0 4px}
+  .muted{color:var(--fg-soft);font-size:.86rem}
+  .preview{width:100%;border-radius:10px;display:block;margin:12px 0;border:1px solid var(--line);background:#000}
+  .acts{display:flex;flex-wrap:wrap;gap:9px}
+  .btn{appearance:none;border:1px solid var(--line);background:var(--surface-2);color:var(--fg);border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;font-size:.92rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:7px}
+  .btn:hover{border-color:var(--gold)}
+  .btn.gold{background:var(--gold);border-color:var(--gold);color:#141007}
+  .btn.gold:hover{background:var(--gold-deep)}
+  .files{list-style:none;margin:12px 0;padding:0;display:grid;gap:6px}
+  .files li{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:.9rem;min-width:0}
+  .files li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .files li em{color:var(--fg-soft);font-style:normal;font-size:.8rem;flex:none}
+  .files li button{flex:none}
+  .warn{margin-top:12px;font-size:.84rem;color:var(--fg-soft);border-left:3px solid var(--gold);padding:4px 0 4px 10px}
+  .err{color:var(--danger);font-size:.9rem;margin-top:8px;min-height:1.2em}
+  .busy{display:none;align-items:center;gap:10px;margin-top:16px;color:var(--fg-soft);font-size:.9rem}
+  .busy.on{display:flex}
+  .spin{width:20px;height:20px;border:3px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:s 1s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .pwrow{display:none;gap:8px;margin-top:10px}
+  .pwrow.on{display:flex}
+  footer{margin-top:34px;color:var(--fg-soft);font-size:.8rem;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← Aplikace</a>
+  <div class="eyebrow">Soubory schované v obrazu</div>
+  <h1>Obraz Trezor</h1>
+  <div class="rule"></div>
+  <p class="sub">Vyber soubory a hned z nich vznikne originální abstraktní obraz z čar, kruhů a koulí, který je v sobě nese. Stejný obraz sem pak stačí znovu přetáhnout a soubory se vybalí.</p>
+
+  <div class="drop" id="drop" role="button" tabindex="0" aria-label="Vybrat soubory">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="9" r="3.5"/><circle cx="16.5" cy="15" r="4.5"/><path d="M3 20c4-6 8-1 11-7s5-6 7-6"/></svg>
+    <b>Přetáhni sem soubory nebo klikni</b>
+    <small>Libovolné soubory → vznikne obraz PNG. Přetáhneš-li sem obraz vytvořený tímto nástrojem, soubory se z něj vybalí.</small>
+  </div>
+  <input type="file" id="file" multiple hidden>
+
+  <details class="opts">
+    <summary>Možnosti – heslo a styl obrazu</summary>
+    <div class="in">
+      <label class="chk"><input type="checkbox" id="usePw"> Zamknout heslem (AES-256)</label>
+      <input type="password" id="pw" placeholder="Heslo" autocomplete="new-password" hidden>
+      <div>
+        <div class="muted" style="margin-bottom:7px">Barvy obrazu</div>
+        <div class="styles" id="styles"></div>
+      </div>
+    </div>
+  </details>
+
+  <div class="busy" id="busy"><div class="spin"></div><span id="busyTxt">Maluji obraz…</span></div>
+  <div class="err" id="err"></div>
+
+  <div class="card" id="outCard">
+    <h2>Obraz je hotový</h2>
+    <div class="muted" id="outInfo"></div>
+    <img class="preview" id="preview" alt="Vygenerovaný obraz se skrytými soubory">
+    <div class="acts">
+      <a class="btn gold" id="dl" download>⬇ Stáhnout obraz</a>
+      <button class="btn" id="shareBtn" hidden>Sdílet</button>
+      <button class="btn" id="again">↻ Jiný obraz</button>
+      <button class="btn" id="reset">Nové soubory</button>
+    </div>
+    <div class="warn">Posílej obraz jako soubor (e-mail, úložiště, „poslat jako dokument“). Messengery a sociální sítě obrázky přepočítávají a skryté soubory by se tím zničily.</div>
+  </div>
+
+  <div class="card" id="inCard">
+    <h2>V obrazu jsou soubory</h2>
+    <div class="muted" id="inInfo"></div>
+    <div class="pwrow" id="pwRow"><input type="password" id="pw2" placeholder="Heslo k obrazu"><button class="btn gold" id="unlock">Odemknout</button></div>
+    <ul class="files" id="files"></ul>
+    <div class="acts" id="inActs" hidden><button class="btn gold" id="dlAll">⬇ Stáhnout vše</button><button class="btn" id="reset2">Hotovo</button></div>
+  </div>
+
+  <footer>Vše běží jen ve tvém prohlížeči, nic se nikam neodesílá. Formát je shodný s Pixel Trezorem, obraz otevře i on.</footer>
+</div>
+<canvas id="work" hidden></canvas>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const enc = new TextEncoder(), dec = new TextDecoder();
+
+/* ---------- CRC32 a ZIP (STORE) – kompatibilní s Pixel Trezorem ---------- */
+const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(buf) { let c = 0xFFFFFFFF; for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function buildZip(files) {
+  const chunks = [], central = []; let offset = 0;
+  for (const f of files) {
+    const nb = enc.encode(f.name), crc = crc32(f.data), size = f.data.length;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(12, 0x21, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, size, true); lh.setUint32(22, size, true); lh.setUint16(26, nb.length, true);
+    const lhU = new Uint8Array(lh.buffer); chunks.push(lhU, nb, f.data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(14, 0x21, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, size, true); ch.setUint32(24, size, true); ch.setUint16(28, nb.length, true); ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), nb);
+    offset += lhU.length + nb.length + size;
+  }
+  let cs = 0; for (const c of central) cs += c.length;
+  const eo = new DataView(new ArrayBuffer(22));
+  eo.setUint32(0, 0x06054b50, true); eo.setUint16(8, files.length, true); eo.setUint16(10, files.length, true); eo.setUint32(12, cs, true); eo.setUint32(16, offset, true);
+  const all = [...chunks, ...central, new Uint8Array(eo.buffer)];
+  let total = 0; for (const c of all) total += c.length;
+  const out = new Uint8Array(total); let p = 0; for (const c of all) { out.set(c, p); p += c.length; }
+  return out;
+}
+function readZip(buf) {
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  let eo = -1; for (let i = buf.length - 22; i >= 0; i--) if (dv.getUint32(i, true) === 0x06054b50) { eo = i; break; }
+  if (eo < 0) throw new Error('Neplatný obsah.');
+  const count = dv.getUint16(eo + 10, true); let cd = dv.getUint32(eo + 16, true); const files = [];
+  for (let n = 0; n < count; n++) {
+    if (dv.getUint32(cd, true) !== 0x02014b50) break;
+    const method = dv.getUint16(cd + 10, true), size = dv.getUint32(cd + 20, true), nl = dv.getUint16(cd + 28, true), xl = dv.getUint16(cd + 30, true), cl = dv.getUint16(cd + 32, true), lo = dv.getUint32(cd + 42, true);
+    const name = dec.decode(buf.subarray(cd + 46, cd + 46 + nl));
+    const start = lo + 30 + dv.getUint16(lo + 26, true) + dv.getUint16(lo + 28, true);
+    if (method !== 0) throw new Error('Nepodporovaný formát.');
+    files.push({ name, data: buf.subarray(start, start + size) });
+    cd += 46 + nl + xl + cl;
+  }
+  return files;
+}
+
+/* ---------- šifrování ---------- */
+async function deriveKey(pw, salt) {
+  const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 150000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function encryptData(data, pw) {
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await deriveKey(pw, salt), data));
+  const out = new Uint8Array(28 + ct.length); out.set(salt, 0); out.set(iv, 16); out.set(ct, 28); return out;
+}
+async function decryptData(b, pw) {
+  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b.subarray(16, 28) }, await deriveKey(pw, b.subarray(0, 16)), b.subarray(28)));
+}
+
+/* ---------- LSB (1 bit v každém barevném kanálu) ---------- */
+const MAGIC = enc.encode('PXTZ'), HEADER_LEN = 13, FLAG_ENC = 1;
+function buildPayload(data, flags) {
+  const out = new Uint8Array(HEADER_LEN + data.length), dv = new DataView(out.buffer);
+  out.set(MAGIC, 0); out[4] = flags; dv.setUint32(5, data.length, true); dv.setUint32(9, crc32(data), true); out.set(data, HEADER_LEN);
+  return out;
+}
+function embed(px, payload) {
+  const bits = payload.length * 8; let bit = 0;
+  for (let i = 0; i < px.length && bit < bits; i += 4)
+    for (let c = 0; c < 3 && bit < bits; c++, bit++) px[i + c] = (px[i + c] & 0xFE) | ((payload[bit >> 3] >> (7 - (bit & 7))) & 1);
+}
+function extract(img) {
+  const px = img.data;
+  const read = (start, n) => { const out = new Uint8Array(n); let bit = start; for (let k = 0; k < n; k++) { let v = 0; for (let j = 0; j < 8; j++, bit++) v = (v << 1) | (px[Math.floor(bit / 3) * 4 + bit % 3] & 1); out[k] = v; } return out; };
+  const h = read(0, HEADER_LEN);
+  for (let k = 0; k < 4; k++) if (h[k] !== MAGIC[k]) return null;
+  const dv = new DataView(h.buffer), len = dv.getUint32(5, true), crc = dv.getUint32(9, true);
+  if (len > Math.floor(img.width * img.height * 3 / 8) - HEADER_LEN) return null;
+  const data = read(HEADER_LEN * 8, len);
+  return { data, encrypted: (h[4] & FLAG_ENC) !== 0, corrupt: crc32(data) !== crc };
+}
+
+/* ---------- generativní obraz: čáry, kruhy, koule ---------- */
+const PALETTES = {
+  auto:   null,
+  zlato:  { name: 'Zlatá noc', bg: ['#0b0b0c', '#1d1a14'], c: ['#d8b25c', '#f2d38a', '#8a6a2c', '#f2ede2', '#5a4a2a'] },
+  more:   { name: 'Moře', bg: ['#04121f', '#0b3550'], c: ['#2ec4b6', '#cbf3f0', '#ffbf69', '#1b98e0', '#ffffff'] },
+  zapad:  { name: 'Západ slunce', bg: ['#2b0f2e', '#6a1b3a'], c: ['#ff7b54', '#ffb26b', '#ffd56b', '#939b62', '#f9f2ed'] },
+  les:    { name: 'Les', bg: ['#0e1a12', '#1f3a26'], c: ['#9bc53d', '#e8e288', '#5c946e', '#c3e88d', '#f4f1de'] },
+  papir:  { name: 'Papír', bg: ['#f4efe6', '#e6dccb'], c: ['#1d3557', '#e63946', '#457b9d', '#f1a208', '#2a2a2a'] },
+  neon:   { name: 'Neon', bg: ['#07070d', '#16122b'], c: ['#ff2e88', '#00f0ff', '#b8ff3c', '#ffe600', '#9b5cff'] }
+};
+let style = 'auto';
+function rng() { const a = new Uint32Array(1); return () => (crypto.getRandomValues(a), a[0] / 4294967296); }
+function paint(ctx, W, H) {
+  const r = rng(), R = (a, b) => a + (b - a) * r(), pick = a => a[Math.floor(r() * a.length)];
+  const keys = Object.keys(PALETTES).filter(k => PALETTES[k]);
+  const P = PALETTES[style] || PALETTES[pick(keys)];
+  const S = Math.min(W, H), alpha = (hex, a) => hex + Math.round(a * 255).toString(16).padStart(2, '0');
+  // pozadí
+  const g = ctx.createLinearGradient(R(0, W), 0, R(0, W), H); g.addColorStop(0, P.bg[0]); g.addColorStop(1, P.bg[1]);
+  ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 3; i++) { const x = R(0, W), y = R(0, H), rr = R(.3, .8) * S, rg = ctx.createRadialGradient(x, y, 0, x, y, rr); rg.addColorStop(0, alpha(pick(P.c), .18)); rg.addColorStop(1, alpha(P.bg[1], 0)); ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H); }
+  ctx.lineCap = 'round';
+  // čáry a křivky
+  const nl = Math.round(R(25, 60));
+  for (let i = 0; i < nl; i++) {
+    ctx.strokeStyle = alpha(pick(P.c), R(.15, .75)); ctx.lineWidth = R(.0008, r() < .15 ? .012 : .004) * S;
+    ctx.beginPath(); const x0 = R(-.1, 1.1) * W, y0 = R(-.1, 1.1) * H; ctx.moveTo(x0, y0);
+    if (r() < .35) ctx.lineTo(R(-.1, 1.1) * W, R(-.1, 1.1) * H);
+    else ctx.bezierCurveTo(R(0, W), R(0, H), R(0, W), R(0, H), R(-.1, 1.1) * W, R(-.1, 1.1) * H);
+    ctx.stroke();
+  }
+  // svazky rovnoběžných čar
+  for (let k = 0, nb = Math.round(R(1, 4)); k < nb; k++) {
+    const x = R(0, W), y = R(0, H), a = R(0, Math.PI), len = R(.2, .6) * S, gap = R(.006, .015) * S, col = pick(P.c);
+    ctx.lineWidth = .0015 * S;
+    for (let j = 0, n = Math.round(R(5, 14)); j < n; j++) {
+      const ox = Math.cos(a + Math.PI / 2) * gap * j, oy = Math.sin(a + Math.PI / 2) * gap * j;
+      ctx.strokeStyle = alpha(col, .25 + .5 * (j / n)); ctx.beginPath();
+      ctx.moveTo(x + ox - Math.cos(a) * len / 2, y + oy - Math.sin(a) * len / 2); ctx.lineTo(x + ox + Math.cos(a) * len / 2, y + oy + Math.sin(a) * len / 2); ctx.stroke();
+    }
+  }
+  // kruhy a prstence
+  const nc = Math.round(R(12, 30));
+  for (let i = 0; i < nc; i++) {
+    const x = R(0, W), y = R(0, H), rad = R(.01, r() < .2 ? .3 : .1) * S, col = pick(P.c);
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2);
+    if (r() < .45) { ctx.fillStyle = alpha(col, R(.08, .35)); ctx.fill(); }
+    ctx.strokeStyle = alpha(col, R(.3, .9)); ctx.lineWidth = R(.001, .006) * S; ctx.stroke();
+    if (r() < .3) for (let j = 1; j < 4; j++) { ctx.beginPath(); ctx.arc(x, y, rad * (1 + j * .18), 0, Math.PI * 2); ctx.strokeStyle = alpha(col, .5 / j); ctx.lineWidth = .001 * S; ctx.stroke(); }
+  }
+  // koule se stínem a odleskem
+  const ns = Math.round(R(5, 12));
+  for (let i = 0; i < ns; i++) {
+    const x = R(.05, .95) * W, y = R(.05, .95) * H, rad = R(.02, r() < .25 ? .16 : .07) * S, col = pick(P.c);
+    const sh = ctx.createRadialGradient(x + rad * .35, y + rad * .9, 0, x + rad * .35, y + rad * .9, rad * 1.2);
+    sh.addColorStop(0, 'rgba(0,0,0,.45)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sh; ctx.beginPath(); ctx.ellipse(x + rad * .35, y + rad * .95, rad * 1.1, rad * .45, 0, 0, Math.PI * 2); ctx.fill();
+    const lx = x - rad * .4, ly = y - rad * .45, sg = ctx.createRadialGradient(lx, ly, rad * .05, x, y, rad);
+    sg.addColorStop(0, '#ffffff'); sg.addColorStop(.18, col); sg.addColorStop(.75, alpha(col, 1)); sg.addColorStop(1, '#000000');
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'multiply'; const dk = ctx.createRadialGradient(lx, ly, rad * .3, x, y, rad * 1.02); dk.addColorStop(0, 'rgba(255,255,255,1)'); dk.addColorStop(1, 'rgba(40,40,40,1)');
+    ctx.fillStyle = dk; ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill(); ctx.globalCompositeOperation = 'source-over';
+  }
+  // jemné zrno, aby obraz působil přirozeně
+  ctx.globalAlpha = 1;
+  return P.name;
+}
+
+/* ---------- UI ---------- */
+const drop = $('drop'), fileIn = $('file');
+let lastFiles = null, lastUrl = null, found = null;
+const fmt = b => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' kB' : (b / 1048576).toFixed(1) + ' MB';
+const busy = (on, t) => { $('busy').classList.toggle('on', on); if (t) $('busyTxt').textContent = t; };
+const err = t => { $('err').textContent = t || ''; };
+const MAX = 60 * 1048576;
+
+$('styles').innerHTML = Object.entries(PALETTES).map(([k, p]) => `<button data-s="${k}" class="${k === style ? 'on' : ''}"><i style="background:${p ? `linear-gradient(135deg,${p.bg[1]},${p.c[0]},${p.c[1]})` : 'conic-gradient(#d8b25c,#2ec4b6,#ff7b54,#9bc53d,#ff2e88,#d8b25c)'}"></i>${p ? p.name : 'Náhodně'}</button>`).join('');
+$('styles').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; style = b.dataset.s; $('styles').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); });
+$('usePw').addEventListener('change', function () { $('pw').hidden = !this.checked; if (this.checked) $('pw').focus(); });
+
+drop.addEventListener('click', () => fileIn.click());
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileIn.click(); } });
+fileIn.addEventListener('change', function () { handle([...this.files]); this.value = ''; });
+['dragenter', 'dragover'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); drop.classList.add('hot'); }));
+['dragleave', 'drop'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); if (t === 'drop' || e.target === document.documentElement) drop.classList.remove('hot'); }));
+document.addEventListener('drop', e => { if (e.dataTransfer.files.length) handle([...e.dataTransfer.files]); });
+
+async function handle(files) {
+  err(); if (!files.length) return;
+  // jeden obrázek? zkusíme, jestli v něm nejsou schované soubory
+  if (files.length === 1 && /^image\/png$/.test(files[0].type)) {
+    const res = await tryOpen(files[0]);
+    if (res) return;
+  }
+  encode(files);
+}
+function readBytes(f) { return f.arrayBuffer().then(b => new Uint8Array(b)); }
+
+async function encode(files) {
+  const total = files.reduce((s, f) => s + f.size, 0);
+  if (total > MAX) { err('Soubory jsou moc velké (' + fmt(total) + '). Maximum je ' + fmt(MAX) + '.'); return; }
+  const pw = $('usePw').checked ? $('pw').value : '';
+  if ($('usePw').checked && !pw) { err('Zadej heslo, nebo zámek vypni.'); return; }
+  $('inCard').classList.remove('on'); $('outCard').classList.remove('on');
+  busy(true, 'Balím soubory…');
+  try {
+    const list = await Promise.all(files.map(async f => ({ name: f.name, data: await readBytes(f) })));
+    let data = buildZip(list), flags = 0;
+    if (pw) { busy(true, 'Šifruji…'); data = await encryptData(data, pw); flags = FLAG_ENC; }
+    lastFiles = { payload: buildPayload(data, flags), names: list.map(f => f.name), total, enc: !!pw };
+    await render();
+  } catch (e) { console.error(e); err('Nepodařilo se: ' + e.message); }
+  busy(false);
+}
+async function render() {
+  busy(true, 'Maluji obraz…');
+  await new Promise(r => setTimeout(r, 30));
+  const pl = lastFiles.payload, need = Math.ceil(pl.length * 8 / 3) * 1.02 + 1000;
+  let W = Math.max(1800, Math.ceil(Math.sqrt(need * 1.5))), H = Math.max(1200, Math.ceil(need / W));
+  if (W * H > 200e6) throw new Error('obraz by byl příliš velký');
+  const cv = $('work'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  const pal = paint(ctx, W, H);
+  busy(true, 'Ukládám soubory do obrazu…');
+  await new Promise(r => setTimeout(r, 20));
+  const img = ctx.getImageData(0, 0, W, H);
+  for (let i = 3; i < img.data.length; i += 4) img.data[i] = 255;
+  embed(img.data, pl);
+  ctx.putImageData(img, 0, 0);
+  // kontrola, že se data dají přečíst zpět
+  const chk = extract(ctx.getImageData(0, 0, W, H));
+  if (!chk || chk.corrupt) throw new Error('kontrola obrazu selhala, zkus to znovu');
+  busy(true, 'Vytvářím PNG…');
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  if (lastUrl) URL.revokeObjectURL(lastUrl);
+  lastUrl = URL.createObjectURL(blob);
+  const d = new Date(), name = 'obraz-' + d.toISOString().slice(0, 10) + '-' + String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + '.png';
+  $('preview').src = lastUrl; $('dl').href = lastUrl; $('dl').download = name;
+  $('outInfo').textContent = lastFiles.names.length + (lastFiles.names.length === 1 ? ' soubor' : lastFiles.names.length < 5 ? ' soubory' : ' souborů') + ' (' + fmt(lastFiles.total) + ')' + (lastFiles.enc ? ' · zamčeno heslem' : '') + ' · ' + pal + ' · ' + W + '×' + H + ' px · ' + fmt(blob.size);
+  $('outCard').classList.add('on');
+  const file = new File([blob], name, { type: 'image/png' });
+  $('shareBtn').hidden = !(navigator.canShare && navigator.canShare({ files: [file] }));
+  $('shareBtn').onclick = () => navigator.share({ files: [file] }).catch(() => {});
+  $('dl').click();
+  busy(false);
+  $('outCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+$('again').addEventListener('click', () => { if (lastFiles) render().catch(e => { busy(false); err(e.message); }); });
+const reset = () => { $('outCard').classList.remove('on'); $('inCard').classList.remove('on'); found = null; err(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+$('reset').addEventListener('click', reset); $('reset2').addEventListener('click', reset);
+
+/* ---------- otevření obrazu ---------- */
+async function tryOpen(file) {
+  busy(true, 'Hledám v obrazu soubory…');
+  try {
+    const bm = await createImageBitmap(file, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+    const cv = $('work'); cv.width = bm.width; cv.height = bm.height;
+    const ctx = cv.getContext('2d', { willReadFrequently: true }); ctx.clearRect(0, 0, bm.width, bm.height); ctx.drawImage(bm, 0, 0);
+    const res = extract(ctx.getImageData(0, 0, bm.width, bm.height));
+    busy(false);
+    if (!res) return false;
+    if (res.corrupt) { err('Obraz obsahuje skrytá data, ale jsou poškozená (obrázek byl nejspíš přepočítán nebo zmenšen).'); return true; }
+    found = res;
+    $('outCard').classList.remove('on'); $('inCard').classList.add('on'); $('files').innerHTML = ''; $('inActs').hidden = true;
+    if (res.encrypted) { $('inInfo').textContent = 'Obraz je zamčený heslem.'; $('pwRow').classList.add('on'); $('pw2').value = ''; $('pw2').focus(); }
+    else { $('pwRow').classList.remove('on'); showFiles(readZip(res.data)); }
+    return true;
+  } catch (e) { busy(false); return false; }
+}
+async function unlock() {
+  try { busy(true, 'Odemykám…'); const data = await decryptData(found.data, $('pw2').value); busy(false); $('pwRow').classList.remove('on'); showFiles(readZip(data)); }
+  catch (e) { busy(false); err('Špatné heslo.'); }
+}
+$('unlock').addEventListener('click', unlock);
+$('pw2').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+let opened = [];
+function showFiles(files) {
+  err(); opened = files;
+  const t = files.reduce((s, f) => s + f.data.length, 0);
+  $('inInfo').textContent = files.length + (files.length === 1 ? ' soubor' : files.length < 5 ? ' soubory' : ' souborů') + ' · ' + fmt(t);
+  $('files').innerHTML = files.map((f, i) => `<li><span title="${f.name.replace(/"/g, '&quot;')}">${f.name.replace(/</g, '&lt;')}</span><em>${fmt(f.data.length)}</em><button class="btn" data-i="${i}">⬇</button></li>`).join('');
+  $('inActs').hidden = false;
+  $('inCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function save(f) { const u = URL.createObjectURL(new Blob([f.data])); const a = document.createElement('a'); a.href = u; a.download = f.name.split('/').pop(); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 5000); }
+$('files').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b) save(opened[+b.dataset.i]); });
+$('dlAll').addEventListener('click', () => opened.forEach((f, i) => setTimeout(() => save(f), i * 300)));
+</script>
+</body>
+</html>
